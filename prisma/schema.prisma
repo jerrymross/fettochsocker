@@ -1,0 +1,186 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum ModuleKey {
+  RECIPES
+  IMPORT
+  EXPORT
+}
+
+enum ImportStatus {
+  PENDING
+  PARSED
+  FAILED
+  IMPORTED
+}
+
+enum ExportStatus {
+  PENDING
+  GENERATED
+  FAILED
+}
+
+enum IngredientUnit {
+  G
+  KG
+  ML
+  CL
+  DL
+  L
+  TSP
+  TBSP
+  PCS
+}
+
+model User {
+  id           String      @id @default(cuid())
+  email        String      @unique
+  name         String
+  passwordHash String
+  role         UserRole    @default(USER)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  recipes      Recipe[]    @relation("RecipeAuthor")
+  imports      ImportJob[] @relation("ImportAuthor")
+  exports      ExportJob[] @relation("ExportAuthor")
+}
+
+model Module {
+  id          String    @id @default(cuid())
+  key         ModuleKey @unique
+  name        String
+  description String
+  enabled     Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Recipe {
+  id               String             @id @default(cuid())
+  slug             String             @unique
+  title            String
+  description      String             @db.Text
+  totalWeightGrams Decimal            @default(0) @db.Decimal(10, 2)
+  authorId         String
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  author           User               @relation("RecipeAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  ingredients      RecipeIngredient[]
+  steps            RecipeStep[]
+  categories       RecipeCategoryLink[]
+  importJobs       ImportJob[]
+  exportItems      ExportItem[]
+
+  @@index([authorId])
+  @@index([createdAt])
+}
+
+model RecipeCategory {
+  id        String               @id @default(cuid())
+  name      String               @unique
+  sortOrder Int                  @default(0)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  recipes   RecipeCategoryLink[]
+}
+
+model RecipeCategoryLink {
+  recipeId   String
+  categoryId String
+  recipe     Recipe         @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  category   RecipeCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([recipeId, categoryId])
+  @@index([categoryId])
+}
+
+model Ingredient {
+  id          String             @id @default(cuid())
+  name        String             @unique
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  recipeLinks RecipeIngredient[]
+}
+
+model RecipeIngredient {
+  id            String     @id @default(cuid())
+  recipeId      String
+  ingredientId  String
+  quantity      Decimal    @db.Decimal(10, 2)
+  unit          IngredientUnit @default(G)
+  note          String?
+  sortOrder     Int
+  recipe        Recipe     @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  ingredient    Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Restrict)
+
+  @@unique([recipeId, sortOrder])
+  @@index([ingredientId])
+}
+
+model RecipeStep {
+  id          String   @id @default(cuid())
+  recipeId    String
+  sortOrder   Int
+  instruction String   @db.Text
+  recipe      Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@unique([recipeId, sortOrder])
+}
+
+model ImportJob {
+  id                String       @id @default(cuid())
+  userId            String
+  importedRecipeId  String?
+  sourceFileName    String
+  mimeType          String
+  rawText           String?      @db.LongText
+  parsedTitle       String?
+  parsedDescription String?      @db.Text
+  mappedRecipeJson  Json?
+  status            ImportStatus @default(PENDING)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  user              User         @relation("ImportAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  importedRecipe    Recipe?      @relation(fields: [importedRecipeId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+}
+
+model ExportJob {
+  id        String       @id @default(cuid())
+  userId    String
+  title     String
+  status    ExportStatus @default(PENDING)
+  fileName  String?
+  recipeIds Json
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  user      User         @relation("ExportAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  items     ExportItem[]
+
+  @@index([userId])
+}
+
+model ExportItem {
+  id          String    @id @default(cuid())
+  exportJobId String
+  recipeId    String
+  sortOrder   Int
+  exportJob   ExportJob @relation(fields: [exportJobId], references: [id], onDelete: Cascade)
+  recipe      Recipe    @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@unique([exportJobId, sortOrder])
+  @@index([recipeId])
+}
