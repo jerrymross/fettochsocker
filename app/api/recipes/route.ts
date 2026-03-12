@@ -16,7 +16,7 @@ export async function GET() {
     return NextResponse.json({ error: "Recipes module is disabled." }, { status: 404 });
   }
 
-  const recipes = await listRecipes();
+  const recipes = await listRecipes(session.userId, session.role);
   return NextResponse.json({ recipes });
 }
 
@@ -33,10 +33,15 @@ export async function POST(request: Request) {
     }
 
     const payload = recipeInputSchema.parse(await request.json());
-    const recipe = await saveRecipe(payload, session.userId);
+    const recipe = await saveRecipe(
+      session.role === "ADMIN" ? payload : { ...payload, isPublic: true },
+      session.userId,
+    );
 
     revalidatePath("/dashboard");
     revalidatePath("/recipes");
+    revalidatePath("/admin");
+    revalidatePath("/export");
 
     return NextResponse.json({ recipe }, { status: 201 });
   } catch (error) {

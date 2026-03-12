@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, UserRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { RecipeInput } from "@/lib/schemas/recipe";
 import { convertToWeightGrams } from "@/lib/units";
@@ -19,6 +19,16 @@ const recipeInclude = {
       category: true,
     },
   },
+  packageLinks: {
+    include: {
+      package: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+  },
   author: {
     select: {
       id: true,
@@ -28,15 +38,73 @@ const recipeInclude = {
   },
 } satisfies Prisma.RecipeInclude;
 
-export async function listRecipes() {
+export function buildRecipeAccessWhere(userId: string, role: UserRole): Prisma.RecipeWhereInput {
+  if (role === "ADMIN") {
+    return {};
+  }
+
+  return {
+    OR: [
+      { isPublic: true },
+      { authorId: userId },
+      {
+        packageLinks: {
+          some: {
+            package: {
+              userLinks: {
+                some: {
+                  userId,
+                },
+              },
+            },
+          },
+        },
+      },
+    ],
+  };
+}
+
+export function buildRecipeWriteWhere(userId: string, role: UserRole): Prisma.RecipeWhereInput {
+  if (role === "ADMIN") {
+    return {};
+  }
+
+  return {
+    authorId: userId,
+  };
+}
+
+export async function listRecipes(userId: string, role: UserRole) {
   return prisma.recipe.findMany({
+    where: buildRecipeAccessWhere(userId, role),
     include: recipeInclude,
     orderBy: { updatedAt: "desc" },
   });
 }
 
-export async function listRecipeSearchItems() {
+export async function countRecipes(userId: string, role: UserRole) {
+  return prisma.recipe.count({
+    where: buildRecipeAccessWhere(userId, role),
+  });
+}
+
+export async function listRecentRecipes(userId: string, role: UserRole, take = 24) {
   return prisma.recipe.findMany({
+    where: buildRecipeAccessWhere(userId, role),
+    orderBy: { updatedAt: "desc" },
+    take,
+    select: {
+      id: true,
+      title: true,
+      totalWeightGrams: true,
+      updatedAt: true,
+    },
+  });
+}
+
+export async function listRecipeSearchItems(userId: string, role: UserRole) {
+  return prisma.recipe.findMany({
+    where: buildRecipeAccessWhere(userId, role),
     select: {
       id: true,
       title: true,
@@ -45,9 +113,35 @@ export async function listRecipeSearchItems() {
   });
 }
 
-export async function getRecipeById(recipeId: string) {
-  return prisma.recipe.findUnique({
-    where: { id: recipeId },
+export async function listRecipesForExport(userId: string, role: UserRole) {
+  return prisma.recipe.findMany({
+    where: buildRecipeAccessWhere(userId, role),
+    orderBy: { title: "asc" },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      totalWeightGrams: true,
+    },
+  });
+}
+
+export async function getRecipeById(recipeId: string, userId: string, role: UserRole) {
+  return prisma.recipe.findFirst({
+    where: {
+      id: recipeId,
+      ...buildRecipeAccessWhere(userId, role),
+    },
+    include: recipeInclude,
+  });
+}
+
+export async function getRecipeByIdForWrite(recipeId: string, userId: string, role: UserRole) {
+  return prisma.recipe.findFirst({
+    where: {
+      id: recipeId,
+      ...buildRecipeWriteWhere(userId, role),
+    },
     include: recipeInclude,
   });
 }
@@ -136,6 +230,7 @@ export async function saveRecipe(input: RecipeInput, authorId: string, recipeId?
         slug,
         title: input.title,
         description: input.description,
+        isPublic: input.isPublic,
         authorId,
         totalWeightGrams,
         categories: {
@@ -174,6 +269,7 @@ export async function saveRecipe(input: RecipeInput, authorId: string, recipeId?
         slug,
         title: input.title,
         description: input.description,
+        isPublic: input.isPublic,
         totalWeightGrams,
         categories: {
           create: categoryIds.map((categoryId) => ({

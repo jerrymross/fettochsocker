@@ -7,6 +7,7 @@ type ParsedRecipePreview = {
   title: string;
   description: string;
   categoryIds: string[];
+  isPublic: boolean;
   ingredients: Array<{ name: string; quantity: number; unit: IngredientUnit; note?: string }>;
   steps: Array<{ instruction: string }>;
   rawText: string;
@@ -386,6 +387,7 @@ export function mapRecipeFromText(rawText: string): ParsedRecipePreview {
     title,
     description: descriptionLines.join(" ") || "Imported from source document.",
     categoryIds: [],
+    isPublic: true,
     ingredients: ingredients.length > 0 ? ingredients : [{ name: "Ingredient", quantity: 1, unit: IngredientUnit.G }],
     steps: steps.length > 0 ? steps : [{ instruction: "Review and complete the imported procedure." }],
     rawText,

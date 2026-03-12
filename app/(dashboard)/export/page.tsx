@@ -1,25 +1,19 @@
 import { ExportBuilder } from "@/components/exports/export-builder";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { getDictionary } from "@/lib/i18n";
-import { prisma } from "@/lib/prisma";
 import { getLocale } from "@/lib/server/locale";
 import { requireModuleEnabled } from "@/lib/server/modules";
+import { listRecipesForExport } from "@/lib/server/recipes";
+import { requireSession } from "@/lib/server/session";
 import { toNumber } from "@/lib/utils";
 
 export default async function ExportPage() {
   const locale = await getLocale();
   const dictionary = getDictionary(locale);
+  const session = await requireSession();
   await requireModuleEnabled("EXPORT");
 
-  const recipes = await prisma.recipe.findMany({
-    orderBy: { title: "asc" },
-    select: {
-      id: true,
-      title: true,
-      description: true,
-      totalWeightGrams: true,
-    },
-  });
+  const recipes = await listRecipesForExport(session.userId, session.role);
 
   return (
     <div className="space-y-6">

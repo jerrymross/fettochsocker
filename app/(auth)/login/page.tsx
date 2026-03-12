@@ -36,13 +36,10 @@ export default async function LoginPage() {
 
         <div className="relative">
           <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2.5">
-              <span className="inline-flex size-5 items-center justify-center rounded-full bg-[#c9ef38]">
-                <span className="size-2 rounded-full bg-[#111110]" />
-              </span>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#c9ef38]">{dictionary.common.brand}</p>
+            <div className="flex items-center justify-between gap-4">
+              <LanguageToggle className="border-white/10 bg-white/5 text-white" />
             </div>
-            <LanguageToggle className="border-white/10 bg-white/5 text-white" />
+            <img src="/logo.png" alt={dictionary.common.brand} className="mt-4 w-full object-contain max-h-[35dvh]" />
           </div>
           <h1 className="mt-8 max-w-xl text-[3rem] font-semibold leading-[1.06] tracking-[-0.04em]">{dictionary.auth.loginHeroTitle}</h1>
           <p className="mt-5 max-w-xl text-lg leading-8 text-white/60">{dictionary.auth.loginHeroDescription}</p>
@@ -61,14 +58,11 @@ export default async function LoginPage() {
       {/* Form panel */}
       <section className="flex items-center justify-center">
         <div className={`${shellCardClass} w-full max-w-xl p-6 sm:p-8 lg:p-10`}>
-          <div className="flex items-center justify-between gap-4 lg:hidden">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex size-4 items-center justify-center rounded-full bg-[#c9ef38]">
-                <span className="size-1.5 rounded-full bg-[#111110]" />
-              </span>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-500">{dictionary.common.brand}</p>
+          <div className="flex flex-col gap-3 lg:hidden">
+            <div className="flex items-center justify-between gap-4">
+              <LanguageToggle />
             </div>
-            <LanguageToggle />
+            <img src="/logo.png" alt={dictionary.common.brand} className="w-full object-contain max-h-[40dvh]" />
           </div>
           <div className="mt-3 flex items-center gap-2.5 lg:mt-0">
             <span className="hidden h-px w-5 bg-[#c9ef38] lg:block" />

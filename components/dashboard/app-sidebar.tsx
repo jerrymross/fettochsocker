@@ -1,6 +1,6 @@
 "use client";
 
-import { FileDown, FileUp, LayoutDashboard, LogOut, NotebookTabs, Settings } from "lucide-react";
+import { FileDown, FileUp, LayoutDashboard, LockKeyhole, LogOut, NotebookTabs, Settings } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { LanguageToggle } from "@/components/language-toggle";
 import { SidebarQuickSearch } from "@/components/dashboard/sidebar-quick-search";
@@ -12,6 +12,7 @@ const iconMap = {
   RECIPES: NotebookTabs,
   IMPORT: FileUp,
   EXPORT: FileDown,
+  admin: LockKeyhole,
   settings: Settings,
 };
 
@@ -25,10 +26,12 @@ export function AppSidebar({
   userName,
   modules,
   recipeSearchItems,
+  isAdmin,
 }: {
   userName: string;
   modules: SidebarLink[];
   recipeSearchItems: Array<{ id: string; title: string }>;
+  isAdmin: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -53,6 +56,14 @@ export function AppSidebar({
       label: module.label,
       active: pathname === module.href || pathname.startsWith(`${module.href}/`),
     })),
+    ...(isAdmin
+      ? [{
+        href: "/admin",
+        icon: iconMap.admin,
+        label: dictionary.common.admin,
+        active: pathname === "/admin" || pathname.startsWith("/admin/"),
+      }]
+      : []),
     {
       href: "/settings",
       icon: iconMap.settings,

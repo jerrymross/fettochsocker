@@ -16,6 +16,7 @@ export const recipeInputSchema = z.object({
   title: z.string().trim().min(2).max(160),
   description: z.string().trim().min(10).max(5000),
   categoryIds: z.array(z.string().cuid()).max(20).default([]),
+  isPublic: z.boolean().default(true),
   ingredients: z.array(ingredientInputSchema).min(1).max(100),
   steps: z.array(stepInputSchema).min(1).max(100),
 });

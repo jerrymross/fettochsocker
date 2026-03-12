@@ -5,6 +5,7 @@ export type EditableRecipe = {
   title: string;
   description: string;
   categoryIds: string[];
+  isPublic: boolean;
   ingredients: Array<{
     name: string;
     quantity: number;

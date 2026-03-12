@@ -4,6 +4,7 @@ import { listRecipeCategories } from "@/lib/server/recipe-categories";
 import { getLocale } from "@/lib/server/locale";
 import { requireModuleEnabled } from "@/lib/server/modules";
 import { listRecipes } from "@/lib/server/recipes";
+import { requireSession } from "@/lib/server/session";
 import { formatDate, formatGrams, toNumber } from "@/lib/utils";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { RecipeList } from "@/components/recipes/recipe-list";
@@ -12,8 +13,9 @@ import { panelClass, primaryButtonClass } from "@/lib/ui";
 export default async function RecipesPage() {
   const locale = await getLocale();
   const dictionary = getDictionary(locale);
+  const session = await requireSession();
   await requireModuleEnabled("RECIPES");
-  const [recipes, categories] = await Promise.all([listRecipes(), listRecipeCategories()]);
+  const [recipes, categories] = await Promise.all([listRecipes(session.userId, session.role), listRecipeCategories()]);
   const recipeItems = recipes.map((recipe) => ({
     id: recipe.id,
     title: recipe.title,

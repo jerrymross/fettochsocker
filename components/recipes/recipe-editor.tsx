@@ -16,6 +16,7 @@ const emptyRecipe: RecipeFormInput = {
   title: "",
   description: "",
   categoryIds: [],
+  isPublic: true,
   ingredients: [{ name: "", quantity: 100, unit: IngredientUnit.G, note: "" }],
   steps: [{ instruction: "" }],
 };
@@ -27,6 +28,7 @@ export function RecipeEditor({
   initialRecipe,
   importId,
   availableCategories,
+  canManageVisibility = false,
 }: {
   endpoint: string;
   method: "POST" | "PUT";
@@ -34,6 +36,7 @@ export function RecipeEditor({
   initialRecipe?: RecipeInput;
   importId?: string;
   availableCategories: RecipeCategoryOption[];
+  canManageVisibility?: boolean;
 }) {
   const router = useRouter();
   const { dictionary } = useLanguage();
@@ -49,6 +52,7 @@ export function RecipeEditor({
       ...emptyRecipe,
       ...initialRecipe,
       categoryIds: initialRecipe?.categoryIds ?? [],
+      isPublic: initialRecipe?.isPublic ?? true,
     },
   });
 
@@ -69,6 +73,10 @@ export function RecipeEditor({
     control: form.control,
     name: "categoryIds",
   }) ?? [];
+  const isPublic = useWatch({
+    control: form.control,
+    name: "isPublic",
+  }) ?? true;
   const totalWeight = watchedIngredients.reduce(
     (sum, item) => sum + (convertToWeightGrams(Number(item?.quantity) || 0, item?.unit ?? IngredientUnit.G) ?? 0),
     0,
@@ -235,6 +243,37 @@ export function RecipeEditor({
           ) : null}
           {newCategoryError ? <p className="text-sm text-rose-600">{newCategoryError}</p> : null}
         </div>
+
+        {canManageVisibility ? (
+          <div className="rounded-[22px] border border-slate-200 bg-slate-50 p-4">
+            <p className="text-sm font-medium text-slate-700">{dictionary.adminPage.recipeAccessTitle}</p>
+            <p className="mt-1 text-sm text-slate-500">{dictionary.adminPage.recipeAccessDescription}</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
+                  isPublic
+                    ? "border-slate-950 bg-slate-950 text-white"
+                    : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                }`}
+                onClick={() => form.setValue("isPublic", true, { shouldDirty: true, shouldTouch: true })}
+                type="button"
+              >
+                {dictionary.adminPage.publicRecipe}
+              </button>
+              <button
+                className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
+                  !isPublic
+                    ? "border-slate-950 bg-slate-950 text-white"
+                    : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                }`}
+                onClick={() => form.setValue("isPublic", false, { shouldDirty: true, shouldTouch: true })}
+                type="button"
+              >
+                {dictionary.adminPage.adminOnlyRecipe}
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div className={`${panelClass} space-y-4`}>

@@ -1,8 +1,9 @@
 import { chromium } from "playwright";
-import type { Prisma } from "@prisma/client";
+import type { Prisma, UserRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { buildPrintableRecipeHtml, type PrintableRecipeDocument } from "@/lib/printable-recipe";
 import { formatIngredientAmount } from "@/lib/units";
+import { buildRecipeAccessWhere } from "@/lib/server/recipes";
 import { formatDate, formatGrams, toNumber } from "@/lib/utils";
 import type { ExportRecipeCollectionInput, ExportRecipeDocumentInput } from "@/lib/schemas/exports";
 
@@ -461,9 +462,12 @@ async function renderPdfFromHtml(html: string) {
   }
 }
 
-export async function createRecipePdf(userId: string, input: ExportRecipeCollectionInput) {
+export async function createRecipePdf(userId: string, role: UserRole, input: ExportRecipeCollectionInput) {
   const recipes = await prisma.recipe.findMany({
-    where: { id: { in: input.recipeIds } },
+    where: {
+      id: { in: input.recipeIds },
+      ...buildRecipeAccessWhere(userId, role),
+    },
     include: {
       ingredients: {
         orderBy: { sortOrder: "asc" },
@@ -478,6 +482,10 @@ export async function createRecipePdf(userId: string, input: ExportRecipeCollect
 
   if (recipes.length === 0) {
     throw new Error("No recipes were found for export.");
+  }
+
+  if (recipes.length !== input.recipeIds.length) {
+    throw new Error("One or more selected recipes are not available for export.");
   }
 
   const exportJob = await prisma.exportJob.create({

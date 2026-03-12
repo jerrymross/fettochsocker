@@ -149,12 +149,9 @@ export default function AnimatedMenuComponent({
             initial={{ opacity: 0, y: -18 }}
             transition={{ delay: 0.08, type: "spring", stiffness: 180 }}
           >
-            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-400">
-              <span className="inline-flex size-4 items-center justify-center rounded-full bg-[#c9ef38]">
-                <span className="size-1.5 rounded-full bg-[#111110]" />
-              </span>
-              {brand}
-            </p>
+            <div className="flex flex-col gap-2">
+              <img src="/logo.png" alt={brand} className="w-full object-contain max-h-[40dvh]" />
+            </div>
             {title ? <h2 className="mt-3 max-w-[10ch] text-[2rem] font-semibold leading-[0.98] text-slate-950">{title}</h2> : null}
             {description ? <p className="mt-2 max-w-[24rem] text-sm leading-6 text-slate-600">{description}</p> : null}
             {resolvedTopSlot ? <div className="mt-4">{resolvedTopSlot}</div> : null}

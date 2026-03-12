@@ -13,7 +13,13 @@ type ImportResponse = {
   recipe: EditableRecipe & { rawText?: string };
 };
 
-export function ImportPreviewBuilder({ availableCategories }: { availableCategories: RecipeCategoryOption[] }) {
+export function ImportPreviewBuilder({
+  availableCategories,
+  canManageVisibility = false,
+}: {
+  availableCategories: RecipeCategoryOption[];
+  canManageVisibility?: boolean;
+}) {
   const { dictionary } = useLanguage();
   const [preview, setPreview] = useState<ImportResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +79,7 @@ export function ImportPreviewBuilder({ availableCategories }: { availableCategor
         <div className="grid gap-6 xl:grid-cols-[1.45fr_0.8fr]">
           <RecipeEditor
             availableCategories={availableCategories}
+            canManageVisibility={canManageVisibility}
             endpoint="/api/imports/commit"
             importId={preview.importId}
             initialRecipe={preview.recipe}

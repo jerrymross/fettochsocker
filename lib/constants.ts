@@ -1,1 +1,1 @@
-export const protectedPaths = ["/dashboard", "/recipes", "/import", "/export", "/settings"];
+export const protectedPaths = ["/dashboard", "/recipes", "/import", "/export", "/settings", "/admin"];

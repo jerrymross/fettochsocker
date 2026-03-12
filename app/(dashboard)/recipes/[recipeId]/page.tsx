@@ -12,6 +12,7 @@ import { listRecipeCategories } from "@/lib/server/recipe-categories";
 import { getLocale } from "@/lib/server/locale";
 import { isModuleEnabled, requireModuleEnabled } from "@/lib/server/modules";
 import { getRecipeById } from "@/lib/server/recipes";
+import { requireSession } from "@/lib/server/session";
 import { formatDateTime, formatGrams, slugify, toNumber } from "@/lib/utils";
 import { panelClass, primaryButtonClass, secondaryButtonClass } from "@/lib/ui";
 
@@ -24,24 +25,27 @@ export default async function RecipeDetailPage({
 }) {
   const locale = await getLocale();
   const dictionary = getDictionary(locale);
+  const session = await requireSession();
   await requireModuleEnabled("RECIPES");
   const exportEnabled = await isModuleEnabled("EXPORT");
   const availableCategories = await listRecipeCategories();
   const { recipeId } = await params;
   const { edit, saved } = await searchParams;
-  const recipe = await getRecipeById(recipeId);
+  const recipe = await getRecipeById(recipeId, session.userId, session.role);
 
   if (!recipe) {
     notFound();
   }
 
-  const isEditMode = edit === "1";
+  const canManageRecipe = session.role === "ADMIN" || recipe.authorId === session.userId;
+  const isEditMode = edit === "1" && canManageRecipe;
   const showSavedState = saved === "1";
 
   const editableRecipe = {
     title: recipe.title,
     description: recipe.description,
     categoryIds: recipe.categories.map((item) => item.categoryId),
+    isPublic: recipe.isPublic,
     ingredients: recipe.ingredients.map((item) => ({
       name: item.ingredient.name,
       quantity: toNumber(item.quantity),
@@ -108,12 +112,14 @@ export default async function RecipeDetailPage({
               pdfEnabled={exportEnabled}
               recipeDocument={recipeDocument}
               trailingActions={
-                <>
-                  <DeleteRecipeButton recipeId={recipe.id} />
-                  <Link className={primaryButtonClass} href={`/recipes/${recipe.id}?edit=1`}>
-                    {dictionary.recipesPage.editRecipe}
-                  </Link>
-                </>
+                canManageRecipe ? (
+                  <>
+                    <DeleteRecipeButton recipeId={recipe.id} />
+                    <Link className={primaryButtonClass} href={`/recipes/${recipe.id}?edit=1`}>
+                      {dictionary.recipesPage.editRecipe}
+                    </Link>
+                  </>
+                ) : null
               }
             />
           ) : null}
@@ -144,6 +150,7 @@ export default async function RecipeDetailPage({
           {isEditMode ? (
             <RecipeEditor
               availableCategories={availableCategories}
+              canManageVisibility={session.role === "ADMIN"}
               endpoint={`/api/recipes/${recipe.id}`}
               initialRecipe={editableRecipe}
               method="PUT"

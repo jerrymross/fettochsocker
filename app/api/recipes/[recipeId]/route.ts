@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { recipeInputSchema } from "@/lib/schemas/recipe";
 import { isModuleEnabled } from "@/lib/server/modules";
-import { getRecipeById, removeRecipe, saveRecipe } from "@/lib/server/recipes";
+import { getRecipeById, getRecipeByIdForWrite, removeRecipe, saveRecipe } from "@/lib/server/recipes";
 import { getSession } from "@/lib/server/session";
 
 export async function GET(
@@ -20,7 +20,7 @@ export async function GET(
   }
 
   const { recipeId } = await params;
-  const recipe = await getRecipeById(recipeId);
+  const recipe = await getRecipeById(recipeId, session.userId, session.role);
 
   if (!recipe) {
     return NextResponse.json({ error: "Recipe not found." }, { status: 404 });
@@ -45,11 +45,23 @@ export async function PUT(
     }
 
     const { recipeId } = await params;
+    const existingRecipe = await getRecipeByIdForWrite(recipeId, session.userId, session.role);
+
+    if (!existingRecipe) {
+      return NextResponse.json({ error: "Recipe not found." }, { status: 404 });
+    }
+
     const payload = recipeInputSchema.parse(await request.json());
-    const recipe = await saveRecipe(payload, session.userId, recipeId);
+    const recipe = await saveRecipe(
+      session.role === "ADMIN" ? payload : { ...payload, isPublic: true },
+      session.userId,
+      recipeId,
+    );
 
     revalidatePath("/dashboard");
     revalidatePath("/recipes");
+    revalidatePath("/admin");
+    revalidatePath("/export");
     revalidatePath(`/recipes/${recipeId}`);
 
     return NextResponse.json({ recipe });
@@ -77,7 +89,7 @@ export async function DELETE(
     }
 
     const { recipeId } = await params;
-    const recipe = await getRecipeById(recipeId);
+    const recipe = await getRecipeByIdForWrite(recipeId, session.userId, session.role);
 
     if (!recipe) {
       return NextResponse.json({ error: "Recipe not found." }, { status: 404 });
@@ -87,6 +99,8 @@ export async function DELETE(
 
     revalidatePath("/dashboard");
     revalidatePath("/recipes");
+    revalidatePath("/admin");
+    revalidatePath("/export");
     revalidatePath(`/recipes/${recipeId}`);
 
     return NextResponse.json({ success: true });

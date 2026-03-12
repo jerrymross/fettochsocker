@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { getDictionary, getModuleMeta } from "@/lib/i18n";
 import { getLocale } from "@/lib/server/locale";
 import { getEnabledModules } from "@/lib/server/modules";
+import { countRecipes, listRecentRecipes } from "@/lib/server/recipes";
+import { requireSession } from "@/lib/server/session";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { panelClass, primaryButtonClass, secondaryButtonClass } from "@/lib/ui";
@@ -12,21 +14,13 @@ export default async function DashboardPage() {
   const locale = await getLocale();
   const dictionary = getDictionary(locale);
   const moduleMeta = getModuleMeta(locale);
+  const session = await requireSession();
   const [recipeCount, importCount, exportCount, enabledModules, recentRecipes] = await Promise.all([
-    prisma.recipe.count(),
+    countRecipes(session.userId, session.role),
     prisma.importJob.count(),
     prisma.exportJob.count(),
     getEnabledModules(locale),
-    prisma.recipe.findMany({
-      orderBy: { updatedAt: "desc" },
-      take: 24,
-      select: {
-        id: true,
-        title: true,
-        totalWeightGrams: true,
-        updatedAt: true,
-      },
-    }),
+    listRecentRecipes(session.userId, session.role),
   ]);
 
   return (

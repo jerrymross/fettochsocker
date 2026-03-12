@@ -2,7 +2,7 @@ export const shellCardClass =
   "rounded-[28px] border-0 bg-white shadow-[0_24px_60px_-12px_rgba(17,17,16,0.22),0_2px_8px_-2px_rgba(17,17,16,0.08)]";
 
 export const panelClass =
-  "rounded-[24px] border-0 bg-white px-6 py-5 shadow-[0_8px_32px_-8px_rgba(17,17,16,0.16),0_1px_3px_rgba(17,17,16,0.06)]";
+  "border-b border-slate-100 bg-white px-6 py-5 sm:rounded-[24px] sm:border-b-0 sm:shadow-[0_8px_32px_-8px_rgba(17,17,16,0.16),0_1px_3px_rgba(17,17,16,0.06)]";
 
 export const inputClass =
   "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition-all duration-200 placeholder:text-slate-400 hover:border-slate-300 focus:border-[#c9ef38] focus:ring-4 focus:ring-[#c9ef38]/20";

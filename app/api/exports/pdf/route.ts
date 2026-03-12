@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     }
 
     const payload = exportRecipeCollectionSchema.parse(await request.json());
-    const { pdfBuffer, fileName } = await createRecipePdf(session.userId, payload);
+    const { pdfBuffer, fileName } = await createRecipePdf(session.userId, session.role, payload);
 
     return new NextResponse(new Uint8Array(pdfBuffer), {
       status: 200,
