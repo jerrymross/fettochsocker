@@ -1,6 +1,6 @@
-# Receptlight
+# Fett & Socker
 
-Production-ready modular recipe web app built with Next.js, React, TypeScript, Tailwind CSS, Prisma, MySQL, Zod, and Playwright.
+Production-ready modular recipe web app built with Next.js, React, TypeScript, Tailwind CSS, Prisma, Supabase Postgres, Zod, and Playwright.
 
 ## Features
 
@@ -19,7 +19,7 @@ Production-ready modular recipe web app built with Next.js, React, TypeScript, T
 - TypeScript
 - Tailwind CSS 4
 - Prisma ORM
-- MySQL
+- Supabase Postgres
 - Playwright
 - Zod
 
@@ -28,7 +28,8 @@ Production-ready modular recipe web app built with Next.js, React, TypeScript, T
 Copy `.env.example` to `.env.local` and set:
 
 ```env
-DATABASE_URL="mysql://root:password@127.0.0.1:3306/receptlight"
+DATABASE_URL="postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1"
+DIRECT_URL="postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres"
 SESSION_SECRET="replace-with-a-long-random-string"
 APP_URL="http://localhost:3000"
 UNSTRUCTURED_API_URL="https://api.unstructured.io/general/v0/general"
@@ -37,6 +38,8 @@ UNSTRUCTURED_API_KEY=""
 
 Notes:
 
+- `DATABASE_URL` should use the Supabase pooled connection string.
+- `DIRECT_URL` should use the direct Postgres connection string for Prisma migrations.
 - `UNSTRUCTURED_API_URL` and `UNSTRUCTURED_API_KEY` are required for PDF and DOCX parsing.
 - Plain text import falls back to local text extraction if Unstructured is not configured.
 - Playwright needs Chromium installed before runtime PDF export.
@@ -48,7 +51,7 @@ npm install
 npm run playwright:install
 ```
 
-Create the database, then run:
+Create a Supabase project, copy the two Postgres connection strings into `.env.local`, then run:
 
 ```bash
 npm run db:generate
@@ -57,11 +60,13 @@ npm run db:seed
 npm run dev
 ```
 
-If you prefer Prisma dev migrations against a local database:
+If you need to create a new migration before pushing schema changes to Supabase:
 
 ```bash
-npm run db:migrate:dev -- --name init
+npm run db:migrate:dev -- --name your_change_name
 ```
+
+The active migration history in `prisma/migrations` is now a PostgreSQL baseline for Supabase. The previous MySQL migration history has been moved to `prisma/mysql-migrations-archive`.
 
 ## Seeded accounts
 
@@ -74,7 +79,7 @@ npm run db:migrate:dev -- --name init
 - `app/api` sample API endpoints
 - `lib/server` auth, modules, recipes, imports, exports
 - `prisma/schema.prisma` Prisma schema
-- `prisma/migrations/20260310160000_init/migration.sql` initial migration
+- `prisma/migrations/20260312180000_postgres_baseline/migration.sql` Supabase/Postgres baseline migration
 - `prisma/seed.ts` seed script
 
 ## Deployment notes
@@ -83,4 +88,4 @@ npm run db:migrate:dev -- --name init
 - Protected app routes are enforced through `proxy.ts`.
 - Module checks are enforced both in page loaders and API handlers.
 - PDF export runs server-side through Playwright Chromium.
-- Use a managed MySQL instance and persistent environment variables in production.
+- Use Supabase Postgres for the database and store `DATABASE_URL`, `DIRECT_URL`, `SESSION_SECRET`, and `APP_URL` in your deployment environment.
