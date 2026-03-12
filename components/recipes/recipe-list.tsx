@@ -15,12 +15,15 @@ type RecipeListItem = {
   ingredientCount: number;
   updatedAt: string;
   updatedAtValue: string;
+  isPublic: boolean;
+  isOwnRecipe: boolean;
 };
 
 export function RecipeList({
   recipes,
   categories,
   labels,
+  showAccessFilters = false,
 }: {
   recipes: RecipeListItem[];
   categories: RecipeCategoryOption[];
@@ -39,11 +42,16 @@ export function RecipeList({
     totalWeight: string;
     ingredients: string;
     updated: string;
+    showPublicRecipes: string;
+    showOwnRecipes: string;
   };
+  showAccessFilters?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("ALL");
   const [sortBy, setSortBy] = useState<"UPDATED" | "TITLE" | "CATEGORY">("UPDATED");
+  const [showPublicRecipes, setShowPublicRecipes] = useState(true);
+  const [showOwnRecipes, setShowOwnRecipes] = useState(true);
 
   const filteredRecipes = recipes
     .filter((recipe) => {
@@ -56,7 +64,12 @@ export function RecipeList({
       const matchesCategory =
         selectedCategoryId === "ALL" || recipe.categories.some((category) => category.id === selectedCategoryId);
 
-      return matchesQuery && matchesCategory;
+      const matchesAccess =
+        !showAccessFilters ||
+        (showPublicRecipes && recipe.isPublic) ||
+        (showOwnRecipes && recipe.isOwnRecipe);
+
+      return matchesQuery && matchesCategory && matchesAccess;
     })
     .sort((left, right) => {
       if (sortBy === "TITLE") {
@@ -137,6 +150,32 @@ export function RecipeList({
             ))}
           </div>
         </div>
+
+        {showAccessFilters ? (
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{labels.recipe}</p>
+            <div className="flex flex-wrap gap-4">
+              <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  checked={showPublicRecipes}
+                  className="size-4"
+                  onChange={(event) => setShowPublicRecipes(event.target.checked)}
+                  type="checkbox"
+                />
+                <span>{labels.showPublicRecipes}</span>
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  checked={showOwnRecipes}
+                  className="size-4"
+                  onChange={(event) => setShowOwnRecipes(event.target.checked)}
+                  type="checkbox"
+                />
+                <span>{labels.showOwnRecipes}</span>
+              </label>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div className="hidden md:grid md:grid-cols-[1.5fr_0.55fr_0.55fr_0.4fr_0.5fr_auto] gap-4 border-b border-slate-200 bg-slate-50/70 px-6 py-3">

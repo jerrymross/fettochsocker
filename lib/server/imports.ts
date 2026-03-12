@@ -387,7 +387,7 @@ export function mapRecipeFromText(rawText: string): ParsedRecipePreview {
     title,
     description: descriptionLines.join(" ") || "Imported from source document.",
     categoryIds: [],
-    isPublic: true,
+    isPublic: false,
     ingredients: ingredients.length > 0 ? ingredients : [{ name: "Ingredient", quantity: 1, unit: IngredientUnit.G }],
     steps: steps.length > 0 ? steps : [{ instruction: "Review and complete the imported procedure." }],
     rawText,

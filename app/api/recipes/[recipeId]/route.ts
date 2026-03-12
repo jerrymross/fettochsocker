@@ -53,7 +53,7 @@ export async function PUT(
 
     const payload = recipeInputSchema.parse(await request.json());
     const recipe = await saveRecipe(
-      session.role === "ADMIN" ? payload : { ...payload, isPublic: true },
+      session.role === "ADMIN" ? payload : { ...payload, isPublic: false },
       session.userId,
       recipeId,
     );

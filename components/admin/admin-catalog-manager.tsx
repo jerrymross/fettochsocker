@@ -1,7 +1,7 @@
 "use client";
 
 import { Trash2 } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/components/language-provider";
 import { inputClass, panelClass, primaryButtonClass, secondaryButtonClass, textareaClass } from "@/lib/ui";
@@ -31,18 +31,24 @@ type AdminPackageItem = {
   userIds: string[];
 };
 
+const compactSelectionCardClass =
+  "flex items-start gap-2 rounded-xl border border-slate-200 bg-white px-2.5 py-2";
+
 function PackageEditorCard({
   packageItem,
   recipes,
   users,
+  onDelete,
 }: {
   packageItem: AdminPackageItem;
   recipes: AdminRecipeItem[];
   users: AdminUserItem[];
+  onDelete: (packageId: string) => Promise<void>;
 }) {
   const router = useRouter();
   const { dictionary } = useLanguage();
   const [isPending, startTransition] = useTransition();
+  const [isDeleting, startDeleting] = useTransition();
   const [name, setName] = useState(packageItem.name);
   const [description, setDescription] = useState(packageItem.description);
   const [selectedRecipeIds, setSelectedRecipeIds] = useState(packageItem.recipeIds);
@@ -84,6 +90,23 @@ function PackageEditorCard({
     });
   }
 
+  function handleDelete() {
+    if (!window.confirm(dictionary.adminPage.deletePackageConfirm)) {
+      return;
+    }
+
+    setMessage(null);
+    setError(null);
+
+    startDeleting(async () => {
+      try {
+        await onDelete(packageItem.id);
+      } catch (deleteError) {
+        setError(deleteError instanceof Error ? deleteError.message : dictionary.adminPage.deletePackageFailed);
+      }
+    });
+  }
+
   return (
     <div className="rounded-[24px] border border-slate-200 bg-slate-50/70 p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -93,12 +116,18 @@ function PackageEditorCard({
             {dictionary.adminPage.createdBy}: {packageItem.createdByName}
           </p>
         </div>
-        <button className={primaryButtonClass} disabled={isPending} onClick={handleSave} type="button">
-          {dictionary.adminPage.savePackage}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button className={secondaryButtonClass} disabled={isDeleting || isPending} onClick={handleDelete} type="button">
+            <Trash2 className="mr-2 size-4" />
+            {isDeleting ? dictionary.adminPage.deletingPackage : dictionary.adminPage.deletePackage}
+          </button>
+          <button className={primaryButtonClass} disabled={isPending || isDeleting} onClick={handleSave} type="button">
+            {dictionary.adminPage.savePackage}
+          </button>
+        </div>
       </div>
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-[0.8fr_1fr_1fr]">
+      <div className="mt-4 grid gap-4 lg:grid-cols-[0.8fr_1fr_1fr]">
         <div className="space-y-2">
           <label className="text-sm font-medium text-slate-700">{dictionary.adminPage.packageName}</label>
           <input className={inputClass} onChange={(event) => setName(event.target.value)} value={name} />
@@ -108,18 +137,18 @@ function PackageEditorCard({
 
         <div className="space-y-3">
           <p className="text-sm font-medium text-slate-700">{dictionary.adminPage.includedRecipes}</p>
-          <div className="grid max-h-[18rem] gap-2 overflow-y-auto pr-1">
+          <div className="grid max-h-[20rem] gap-1.5 overflow-y-auto pr-1">
             {recipes.map((recipe) => (
-              <label key={recipe.id} className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3">
+              <label key={recipe.id} className={compactSelectionCardClass}>
                 <input
                   checked={selectedRecipeIds.includes(recipe.id)}
                   className="mt-1"
                   onChange={() => setSelectedRecipeIds((current) => toggleSelection(current, recipe.id))}
                   type="checkbox"
                 />
-                <span>
-                  <span className="block font-medium text-slate-950">{recipe.title}</span>
-                  <span className="block text-sm text-slate-500">{recipe.isPublic ? dictionary.adminPage.publicRecipe : dictionary.adminPage.adminOnlyRecipe}</span>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-medium text-slate-950">{recipe.title}</span>
+                  <span className="block text-xs text-slate-500">{recipe.isPublic ? dictionary.adminPage.publicRecipe : dictionary.adminPage.adminOnlyRecipe}</span>
                 </span>
               </label>
             ))}
@@ -128,18 +157,18 @@ function PackageEditorCard({
 
         <div className="space-y-3">
           <p className="text-sm font-medium text-slate-700">{dictionary.adminPage.assignedUsers}</p>
-          <div className="grid max-h-[18rem] gap-2 overflow-y-auto pr-1">
+          <div className="grid max-h-[20rem] gap-1.5 overflow-y-auto pr-1">
             {users.map((user) => (
-              <label key={user.id} className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3">
+              <label key={user.id} className={compactSelectionCardClass}>
                 <input
                   checked={selectedUserIds.includes(user.id)}
                   className="mt-1"
                   onChange={() => setSelectedUserIds((current) => toggleSelection(current, user.id))}
                   type="checkbox"
                 />
-                <span>
-                  <span className="block font-medium text-slate-950">{user.name}</span>
-                  <span className="block text-sm text-slate-500">{user.email}</span>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-medium text-slate-950">{user.name}</span>
+                  <span className="block truncate text-xs text-slate-500">{user.email}</span>
                 </span>
               </label>
             ))}
@@ -169,6 +198,7 @@ export function AdminCatalogManager({
   const [isPending, startTransition] = useTransition();
   const [recipesState, setRecipesState] = useState(recipes);
   const [usersState, setUsersState] = useState(users);
+  const [packagesState, setPackagesState] = useState(packages);
   const [visibilityMessage, setVisibilityMessage] = useState<string | null>(null);
   const [visibilityError, setVisibilityError] = useState<string | null>(null);
   const [packageMessage, setPackageMessage] = useState<string | null>(null);
@@ -181,6 +211,18 @@ export function AdminCatalogManager({
   const [description, setDescription] = useState("");
   const [selectedRecipeIds, setSelectedRecipeIds] = useState<string[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    setRecipesState(recipes);
+  }, [recipes]);
+
+  useEffect(() => {
+    setUsersState(users);
+  }, [users]);
+
+  useEffect(() => {
+    setPackagesState(packages);
+  }, [packages]);
 
   function toggleSelection(current: string[], value: string) {
     return current.includes(value) ? current.filter((item) => item !== value) : [...current, value];
@@ -246,6 +288,34 @@ export function AdminCatalogManager({
       setSelectedUserIds([]);
       router.refresh();
     });
+  }
+
+  async function deletePackage(packageId: string) {
+    setPackageMessage(null);
+    setPackageError(null);
+
+    const packageName = packagesState.find((packageItem) => packageItem.id === packageId)?.name ?? null;
+    const response = await fetch(`/api/admin/packages/${packageId}`, {
+      method: "DELETE",
+    });
+
+    const payload = (await response.json()) as { error?: string };
+
+    if (!response.ok) {
+      throw new Error(payload.error ?? dictionary.adminPage.deletePackageFailed);
+    }
+
+    setPackagesState((current) => current.filter((packageItem) => packageItem.id !== packageId));
+    if (packageName) {
+      setRecipesState((current) =>
+        current.map((recipe) => ({
+          ...recipe,
+          packageNames: recipe.packageNames.filter((currentPackageName) => currentPackageName !== packageName),
+        })),
+      );
+    }
+    setPackageMessage(dictionary.adminPage.packageDeleted);
+    router.refresh();
   }
 
   function handleDeleteUser(userId: string) {
@@ -437,7 +507,7 @@ export function AdminCatalogManager({
           <p className="mt-2 text-sm text-slate-700">{dictionary.adminPage.packageDescription}</p>
         </div>
 
-        <div className="grid gap-4 xl:grid-cols-[0.8fr_1fr_1fr]">
+        <div className="grid gap-4 lg:grid-cols-[0.8fr_1fr_1fr]">
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-700">{dictionary.adminPage.packageName}</label>
             <input className={inputClass} onChange={(event) => setName(event.target.value)} value={name} />
@@ -450,18 +520,18 @@ export function AdminCatalogManager({
 
           <div className="space-y-3">
             <p className="text-sm font-medium text-slate-700">{dictionary.adminPage.includedRecipes}</p>
-            <div className="grid max-h-[18rem] gap-2 overflow-y-auto pr-1">
+            <div className="grid max-h-[20rem] gap-1.5 overflow-y-auto pr-1">
               {recipesState.map((recipe) => (
-                <label key={recipe.id} className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3">
+                <label key={recipe.id} className={compactSelectionCardClass}>
                   <input
                     checked={selectedRecipeIds.includes(recipe.id)}
                     className="mt-1"
                     onChange={() => setSelectedRecipeIds((current) => toggleSelection(current, recipe.id))}
                     type="checkbox"
                   />
-                  <span>
-                    <span className="block font-medium text-slate-950">{recipe.title}</span>
-                    <span className="block text-sm text-slate-500">{recipe.isPublic ? dictionary.adminPage.publicRecipe : dictionary.adminPage.adminOnlyRecipe}</span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium text-slate-950">{recipe.title}</span>
+                    <span className="block text-xs text-slate-500">{recipe.isPublic ? dictionary.adminPage.publicRecipe : dictionary.adminPage.adminOnlyRecipe}</span>
                   </span>
                 </label>
               ))}
@@ -470,18 +540,18 @@ export function AdminCatalogManager({
 
           <div className="space-y-3">
             <p className="text-sm font-medium text-slate-700">{dictionary.adminPage.assignedUsers}</p>
-            <div className="grid max-h-[18rem] gap-2 overflow-y-auto pr-1">
-              {users.map((user) => (
-                <label key={user.id} className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3">
+            <div className="grid max-h-[20rem] gap-1.5 overflow-y-auto pr-1">
+              {usersState.map((user) => (
+                <label key={user.id} className={compactSelectionCardClass}>
                   <input
                     checked={selectedUserIds.includes(user.id)}
                     className="mt-1"
                     onChange={() => setSelectedUserIds((current) => toggleSelection(current, user.id))}
                     type="checkbox"
                   />
-                  <span>
-                    <span className="block font-medium text-slate-950">{user.name}</span>
-                    <span className="block text-sm text-slate-500">{user.email}</span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium text-slate-950">{user.name}</span>
+                    <span className="block truncate text-xs text-slate-500">{user.email}</span>
                   </span>
                 </label>
               ))}
@@ -493,11 +563,17 @@ export function AdminCatalogManager({
         {packageError ? <p className="text-sm text-rose-600">{packageError}</p> : null}
 
         <div className="space-y-4">
-          {packages.length === 0 ? (
+          {packagesState.length === 0 ? (
             <p className="text-sm text-slate-500">{dictionary.adminPage.noPackages}</p>
           ) : (
-            packages.map((packageItem) => (
-              <PackageEditorCard key={packageItem.id} packageItem={packageItem} recipes={recipesState} users={usersState} />
+            packagesState.map((packageItem) => (
+              <PackageEditorCard
+                key={packageItem.id}
+                onDelete={deletePackage}
+                packageItem={packageItem}
+                recipes={recipesState}
+                users={usersState}
+              />
             ))
           )}
         </div>

@@ -115,10 +115,12 @@ function buildPdfHtml(title: string, recipes: ExportRecipeRecord[]) {
     <html>
       <head>
         <meta charset="utf-8" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=block" rel="stylesheet">
         <style>
           @page { size: A4 portrait; margin: 0; }
           html, body { margin: 0; padding: 0; background: #f5f1e8; }
-          body { font-family: "Segoe UI", Arial, sans-serif; color: #18222f; }
+          body { font-family: "Inter", "Segoe UI", system-ui, Arial, sans-serif; color: #18222f; }
           .pdf-page {
             width: 210mm;
             height: 297mm;

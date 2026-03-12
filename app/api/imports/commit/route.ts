@@ -18,7 +18,10 @@ export async function POST(request: Request) {
     }
 
     const payload = commitImportSchema.parse(await request.json());
-    const recipe = await commitImport(session.userId, payload);
+    const recipe = await commitImport(session.userId, {
+      ...payload,
+      recipe: session.role === "ADMIN" ? payload.recipe : { ...payload.recipe, isPublic: false },
+    });
 
     revalidatePath("/dashboard");
     revalidatePath("/recipes");

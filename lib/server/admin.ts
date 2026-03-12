@@ -150,6 +150,15 @@ export async function updateRecipePackage(packageId: string, input: RecipePackag
   });
 }
 
+export async function deleteRecipePackage(packageId: string) {
+  return prisma.recipePackage.delete({
+    where: { id: packageId },
+    select: {
+      id: true,
+    },
+  });
+}
+
 export async function deleteAdminUser(userId: string, currentAdminId: string) {
   if (userId === currentAdminId) {
     throw new Error("You cannot delete your own admin account.");

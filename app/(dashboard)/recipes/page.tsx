@@ -20,6 +20,8 @@ export default async function RecipesPage() {
     id: recipe.id,
     title: recipe.title,
     description: recipe.description,
+    isPublic: recipe.isPublic,
+    isOwnRecipe: recipe.authorId === session.userId,
     categories: recipe.categories
       .map((item) => ({ id: item.category.id, name: item.category.name }))
       .sort((left, right) => left.name.localeCompare(right.name, undefined, { sensitivity: "base" })),
@@ -60,8 +62,11 @@ export default async function RecipesPage() {
             totalWeight: dictionary.common.totalWeight,
             ingredients: dictionary.common.ingredients,
             updated: dictionary.common.updated,
+            showPublicRecipes: dictionary.recipesPage.showPublicRecipes,
+            showOwnRecipes: dictionary.recipesPage.showOwnRecipes,
           }}
           recipes={recipeItems}
+          showAccessFilters={session.role !== "ADMIN"}
         />
       </div>
     </div>

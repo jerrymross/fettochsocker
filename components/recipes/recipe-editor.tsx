@@ -16,7 +16,7 @@ const emptyRecipe: RecipeFormInput = {
   title: "",
   description: "",
   categoryIds: [],
-  isPublic: true,
+  isPublic: false,
   ingredients: [{ name: "", quantity: 100, unit: IngredientUnit.G, note: "" }],
   steps: [{ instruction: "" }],
 };
@@ -52,7 +52,7 @@ export function RecipeEditor({
       ...emptyRecipe,
       ...initialRecipe,
       categoryIds: initialRecipe?.categoryIds ?? [],
-      isPublic: initialRecipe?.isPublic ?? true,
+      isPublic: initialRecipe?.isPublic ?? false,
     },
   });
 
