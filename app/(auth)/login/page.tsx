@@ -60,7 +60,7 @@ export default async function LoginPage() {
 
       {/* Form panel */}
       <section className="flex items-center justify-center">
-        <div className={`${shellCardClass} w-full max-w-xl p-8 lg:p-10`}>
+        <div className={`${shellCardClass} w-full max-w-xl p-6 sm:p-8 lg:p-10`}>
           <div className="flex items-center justify-between gap-4 lg:hidden">
             <div className="flex items-center gap-2">
               <span className="inline-flex size-4 items-center justify-center rounded-full bg-[#c9ef38]">

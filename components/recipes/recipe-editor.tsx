@@ -255,7 +255,7 @@ export function RecipeEditor({
 
         <div className="space-y-4">
           {ingredientFields.fields.map((field, index) => (
-            <div key={field.id} className="grid gap-3 rounded-[22px] border border-slate-200 p-4 lg:grid-cols-[1.35fr_0.55fr_0.4fr_1fr_auto]">
+            <div key={field.id} className="grid gap-3 rounded-[22px] border border-slate-200 p-4 sm:grid-cols-[1.5fr_0.5fr_0.4fr] lg:grid-cols-[1.35fr_0.55fr_0.4fr_1fr_auto]">
               <input className={inputClass} placeholder={dictionary.recipeEditor.ingredientName} {...form.register(`ingredients.${index}.name`)} />
               <input
                 className={inputClass}
@@ -272,7 +272,7 @@ export function RecipeEditor({
                   </option>
                 ))}
               </select>
-              <input className={inputClass} placeholder={dictionary.recipeEditor.optionalNote} {...form.register(`ingredients.${index}.note`)} />
+              <input className={`${inputClass} sm:col-span-2 lg:col-span-1`} placeholder={dictionary.recipeEditor.optionalNote} {...form.register(`ingredients.${index}.note`)} />
               <button
                 className={`${secondaryButtonClass} px-3`}
                 disabled={ingredientFields.fields.length === 1}

@@ -47,13 +47,13 @@ export default async function DashboardPage() {
         title={dictionary.dashboardPage.title}
       />
 
-      <div className="grid gap-4 xl:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-3">
         <StatCard caption={dictionary.dashboardPage.recipesCaption} label={dictionary.common.recipes} value={String(recipeCount)} />
         <StatCard caption={dictionary.dashboardPage.importsCaption} label={dictionary.common.import} value={String(importCount)} />
         <StatCard caption={dictionary.dashboardPage.exportsCaption} label={dictionary.common.export} value={String(exportCount)} />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+      <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
         <div className={`${panelClass} space-y-4`}>
           <div>
             <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">
@@ -81,7 +81,7 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        <div className={`${panelClass} flex flex-col gap-4 xl:max-h-[30rem]`}>
+        <div className={`${panelClass} flex flex-col gap-4 lg:max-h-[30rem]`}>
           <div>
             <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">
               <span className="inline-flex size-3.5 items-center justify-center rounded-full bg-[#c9ef38]">

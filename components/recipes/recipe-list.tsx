@@ -139,7 +139,7 @@ export function RecipeList({
         </div>
       </div>
 
-      <div className="grid grid-cols-[1.5fr_0.55fr_0.55fr_0.4fr_0.5fr_auto] gap-4 border-b border-slate-200 bg-slate-50/70 px-6 py-3">
+      <div className="hidden md:grid md:grid-cols-[1.5fr_0.55fr_0.55fr_0.4fr_0.5fr_auto] gap-4 border-b border-slate-200 bg-slate-50/70 px-6 py-3">
         <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{labels.recipe}</span>
         <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{labels.category}</span>
         <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{labels.totalWeight}</span>
@@ -151,28 +151,48 @@ export function RecipeList({
       {filteredRecipes.map((recipe) => (
         <Link
           key={recipe.id}
-          className="group grid grid-cols-[1.5fr_0.55fr_0.55fr_0.4fr_0.5fr_auto] items-center gap-4 border-b border-slate-100 px-6 py-4 transition-all duration-150 hover:bg-[#c9ef38]/10 last:border-b-0"
+          className="group block border-b border-slate-100 transition-all duration-150 hover:bg-[#c9ef38]/10 last:border-b-0"
           href={`/recipes/${recipe.id}`}
         >
-          <div className="min-w-0">
-            <p className="font-semibold text-slate-950">{recipe.title}</p>
-            <p className="mt-0.5 line-clamp-1 text-sm text-slate-500">{recipe.description}</p>
+          {/* Mobile layout */}
+          <div className="flex items-center gap-3 px-4 py-4 md:hidden">
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-slate-950">{recipe.title}</p>
+              {recipe.description ? <p className="mt-0.5 line-clamp-1 text-sm text-slate-500">{recipe.description}</p> : null}
+              {recipe.categories.length > 0 ? (
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  {recipe.categories.map((category) => (
+                    <span key={category.id} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+                      {category.name}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+            <ChevronRight className="size-4 shrink-0 text-slate-300 transition-all duration-150 group-hover:translate-x-0.5 group-hover:text-[#5a7020]" />
           </div>
-          <div className="flex flex-wrap gap-2">
-            {recipe.categories.length > 0 ? (
-              recipe.categories.map((category) => (
-                <span key={category.id} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-                  {category.name}
-                </span>
-              ))
-            ) : (
-              <span className="text-sm text-slate-400">{labels.uncategorized}</span>
-            )}
+          {/* Desktop layout */}
+          <div className="hidden md:grid md:grid-cols-[1.5fr_0.55fr_0.55fr_0.4fr_0.5fr_auto] items-center gap-4 px-6 py-4">
+            <div className="min-w-0">
+              <p className="font-semibold text-slate-950">{recipe.title}</p>
+              <p className="mt-0.5 line-clamp-1 text-sm text-slate-500">{recipe.description}</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {recipe.categories.length > 0 ? (
+                recipe.categories.map((category) => (
+                  <span key={category.id} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                    {category.name}
+                  </span>
+                ))
+              ) : (
+                <span className="text-sm text-slate-400">{labels.uncategorized}</span>
+              )}
+            </div>
+            <span className="text-sm text-slate-700">{recipe.totalWeight}</span>
+            <span className="text-sm text-slate-700">{recipe.ingredientCount}</span>
+            <span className="text-sm text-slate-500">{recipe.updatedAt}</span>
+            <ChevronRight className="size-4 text-slate-300 transition-all duration-150 group-hover:translate-x-0.5 group-hover:text-[#5a7020]" />
           </div>
-          <span className="text-sm text-slate-700">{recipe.totalWeight}</span>
-          <span className="text-sm text-slate-700">{recipe.ingredientCount}</span>
-          <span className="text-sm text-slate-500">{recipe.updatedAt}</span>
-          <ChevronRight className="size-4 text-slate-300 transition-all duration-150 group-hover:translate-x-0.5 group-hover:text-[#5a7020]" />
         </Link>
       ))}
 

@@ -63,7 +63,7 @@ export function ExportBuilder({ recipes }: { recipes: ExportableRecipe[] }) {
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1.1fr_0.8fr]">
+    <div className="grid gap-6 md:grid-cols-[1.1fr_0.8fr]">
       <div className={`${panelClass} space-y-4`}>
         <div>
           <h2 className="text-2xl font-semibold text-slate-950">{dictionary.exportBuilder.selectRecipes}</h2>
