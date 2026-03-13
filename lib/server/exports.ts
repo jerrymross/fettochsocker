@@ -1,4 +1,3 @@
-import { chromium } from "playwright";
 import type { Prisma, UserRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { buildPrintableRecipeHtml, type PrintableRecipeDocument } from "@/lib/printable-recipe";
@@ -448,6 +447,7 @@ function buildPdfHtml(title: string, recipes: ExportRecipeRecord[]) {
 
 async function renderPdfFromHtml(html: string) {
   process.env.PLAYWRIGHT_BROWSERS_PATH ??= "0";
+  const { chromium } = await import("playwright");
   const browser = await chromium.launch({ headless: true });
 
   try {
