@@ -447,6 +447,7 @@ function buildPdfHtml(title: string, recipes: ExportRecipeRecord[]) {
 }
 
 async function renderPdfFromHtml(html: string) {
+  process.env.PLAYWRIGHT_BROWSERS_PATH ??= "0";
   const browser = await chromium.launch({ headless: true });
 
   try {
