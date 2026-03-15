@@ -22,6 +22,23 @@ function isImageFile(file: File) {
   return file.type.startsWith("image/");
 }
 
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string) {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 function loadImage(file: File) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const objectUrl = URL.createObjectURL(file);
@@ -107,6 +124,27 @@ async function optimizeImageForUpload(file: File, photoTooLargeMessage: string) 
   });
 }
 
+async function extractPhotoText(file: File, timeoutMessage: string) {
+  const tesseractModule = await import("tesseract.js");
+  const recognize = tesseractModule.default.recognize;
+
+  try {
+    const result = await withTimeout(
+      recognize(file, "swe+eng"),
+      imageUploadTimeoutMs,
+      timeoutMessage,
+    );
+    return result.data.text.trim();
+  } catch {
+    const fallbackResult = await withTimeout(
+      recognize(file, "eng"),
+      imageUploadTimeoutMs,
+      timeoutMessage,
+    );
+    return fallbackResult.data.text.trim();
+  }
+}
+
 export function ImportPreviewBuilder({
   availableCategories,
   canManageVisibility = false,
@@ -134,11 +172,17 @@ export function ImportPreviewBuilder({
       const timeoutId = window.setTimeout(() => controller.abort(), imageUploadTimeoutMs);
 
       try {
-        const uploadFile = isImageFile(file)
-          ? await optimizeImageForUpload(file, dictionary.importBuilder.parseTimedOut)
-          : file;
         const formData = new FormData();
-        formData.set("file", uploadFile);
+
+        if (isImageFile(file)) {
+          const uploadFile = await optimizeImageForUpload(file, dictionary.importBuilder.parseTimedOut);
+          const rawText = await extractPhotoText(uploadFile, dictionary.importBuilder.parseTimedOut);
+          formData.set("rawText", rawText);
+          formData.set("sourceFileName", uploadFile.name);
+          formData.set("mimeType", uploadFile.type);
+        } else {
+          formData.set("file", file);
+        }
 
         const response = await fetch("/api/imports/parse", {
           method: "POST",

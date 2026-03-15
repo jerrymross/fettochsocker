@@ -567,13 +567,34 @@ async function parseFileToText(file: File) {
 
 export async function createImportPreview(userId: string, file: File) {
   const rawText = await parseFileToText(file);
+  return createImportPreviewFromText(userId, {
+    mimeType: file.type || "application/octet-stream",
+    rawText,
+    sourceFileName: file.name,
+  });
+}
+
+export async function createImportPreviewFromText(
+  userId: string,
+  input: {
+    rawText: string;
+    sourceFileName: string;
+    mimeType?: string;
+  },
+) {
+  const rawText = normalizeExtractedText(input.rawText);
+
+  if (!rawText.trim()) {
+    throw new Error("No readable text could be extracted from the uploaded file.");
+  }
+
   const mapped = mapRecipeFromText(rawText);
 
   const importJob = await prisma.importJob.create({
     data: {
       userId,
-      sourceFileName: file.name,
-      mimeType: file.type || "application/octet-stream",
+      sourceFileName: input.sourceFileName,
+      mimeType: input.mimeType || "application/octet-stream",
       rawText,
       parsedTitle: mapped.title,
       parsedDescription: mapped.description,
