@@ -13,9 +13,9 @@ type ImportResponse = {
   recipe: EditableRecipe & { rawText?: string };
 };
 
-const imageUploadMaxDimension = 1280;
-const imageUploadQuality = 0.76;
-const imageUploadMaxBytes = 900_000;
+const imageUploadMaxDimension = 960;
+const imageUploadQuality = 0.68;
+const imageUploadMaxBytes = 350_000;
 const imageUploadTimeoutMs = 45_000;
 
 function isImageFile(file: File) {
@@ -41,7 +41,7 @@ function loadImage(file: File) {
   });
 }
 
-async function optimizeImageForUpload(file: File) {
+async function optimizeImageForUpload(file: File, photoTooLargeMessage: string) {
   const image = await loadImage(file);
   const longestSide = Math.max(image.width, image.height);
   const scale = Math.min(1, imageUploadMaxDimension / longestSide);
@@ -62,6 +62,7 @@ async function optimizeImageForUpload(file: File) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     canvas.width = Math.max(1, Math.round(image.width * currentScale));
     canvas.height = Math.max(1, Math.round(image.height * currentScale));
+    context.filter = "grayscale(1) contrast(1.18) brightness(1.04)";
     context.fillStyle = "#ffffff";
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
@@ -85,12 +86,18 @@ async function optimizeImageForUpload(file: File) {
       break;
     }
 
-    currentScale *= 0.86;
-    currentQuality = Math.max(0.5, currentQuality - 0.08);
+    currentScale *= 0.82;
+    currentQuality = Math.max(0.42, currentQuality - 0.08);
   }
+
+  context.filter = "none";
 
   if (!blob) {
     throw new Error("Unable to prepare the image for OCR.");
+  }
+
+  if (blob.size > imageUploadMaxBytes) {
+    throw new Error(photoTooLargeMessage);
   }
 
   const normalizedName = file.name.replace(/\.[^.]+$/, "") || "recipe-photo";
@@ -127,7 +134,9 @@ export function ImportPreviewBuilder({
       const timeoutId = window.setTimeout(() => controller.abort(), imageUploadTimeoutMs);
 
       try {
-        const uploadFile = isImageFile(file) ? await optimizeImageForUpload(file) : file;
+        const uploadFile = isImageFile(file)
+          ? await optimizeImageForUpload(file, dictionary.importBuilder.parseTimedOut)
+          : file;
         const formData = new FormData();
         formData.set("file", uploadFile);
 
