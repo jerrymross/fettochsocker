@@ -635,6 +635,54 @@ function findNextSectionIndex(lines: string[], startIndex: number) {
   return lines.length;
 }
 
+function formatIngredientUnit(unit: IngredientUnit) {
+  switch (unit) {
+    case IngredientUnit.KG:
+      return "kg";
+    case IngredientUnit.ML:
+      return "ml";
+    case IngredientUnit.CL:
+      return "cl";
+    case IngredientUnit.DL:
+      return "dl";
+    case IngredientUnit.L:
+      return "l";
+    case IngredientUnit.TSP:
+      return "tsk";
+    case IngredientUnit.TBSP:
+      return "msk";
+    case IngredientUnit.PCS:
+      return "st";
+    case IngredientUnit.G:
+    default:
+      return "g";
+  }
+}
+
+function buildReadableSourceText(recipe: Omit<ParsedRecipePreview, "rawText">) {
+  const sections: string[] = [recipe.title];
+
+  if (recipe.description && recipe.description !== "Imported from source document.") {
+    sections.push(recipe.description);
+  }
+
+  if (recipe.ingredients.length > 0) {
+    sections.push("Ingredienser");
+    sections.push(
+      ...recipe.ingredients.map((ingredient) =>
+        `${ingredient.quantity} ${formatIngredientUnit(ingredient.unit)} ${ingredient.name}${ingredient.note ? `, ${ingredient.note}` : ""}`.trim(),
+      ),
+    );
+  }
+
+  if (recipe.steps.length > 0) {
+    sections.push("Metod");
+    sections.push(...recipe.steps.map((step, index) => `${index + 1}. ${step.instruction}`));
+  }
+
+  return sections.join("\n");
+}
+
 function parseIngredientLines(lines: string[]) {
   const ingredients: ParsedRecipePreview["ingredients"] = [];
   let pendingName: string | null = null;
@@ -867,15 +915,26 @@ export function mapRecipeFromText(rawText: string): ParsedRecipePreview {
 
   const ingredients = parseIngredientLines(fallbackSourceIngredientLines);
   const steps = parseStepLines(stepLines);
+  const description = descriptionLines.join(" ") || "Imported from source document.";
+  const safeIngredients = ingredients.length > 0 ? ingredients : [{ name: "Ingredient", quantity: 1, unit: IngredientUnit.G }];
+  const safeSteps = steps.length > 0 ? steps : [{ instruction: "Review and complete the imported procedure." }];
+  const readableSourceText = buildReadableSourceText({
+    title,
+    description,
+    categoryIds: [],
+    isPublic: false,
+    ingredients: safeIngredients,
+    steps: safeSteps,
+  });
 
   return {
     title,
-    description: descriptionLines.join(" ") || "Imported from source document.",
+    description,
     categoryIds: [],
     isPublic: false,
-    ingredients: ingredients.length > 0 ? ingredients : [{ name: "Ingredient", quantity: 1, unit: IngredientUnit.G }],
-    steps: steps.length > 0 ? steps : [{ instruction: "Review and complete the imported procedure." }],
-    rawText,
+    ingredients: safeIngredients,
+    steps: safeSteps,
+    rawText: readableSourceText,
   };
 }
 

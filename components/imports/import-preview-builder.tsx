@@ -28,6 +28,8 @@ type OcrModule = {
     LSTM_ONLY: string | number;
   };
   PSM: {
+    AUTO: string | number;
+    SINGLE_BLOCK: string | number;
     SINGLE_COLUMN: string | number;
     SPARSE_TEXT: string | number;
   };
@@ -41,6 +43,7 @@ type ImportResponse = {
 const ocrCanvasMaxDimension = 1800;
 const imageUploadTimeoutMs = 45_000;
 let ocrWorkerPromise: Promise<OcrWorker> | null = null;
+const recipeOcrHints = ["ganache", "kaffegrädde", "grädde", "smör", "florsocker", "glykos", "choklad", "koka", "blanda"];
 
 function isImageFile(file: File) {
   return file.type.startsWith("image/");
@@ -269,7 +272,21 @@ async function prepareImageForOcr(file: File) {
 
   binaryContext.putImageData(binaryImage, 0, 0);
 
+  const originalCanvas = document.createElement("canvas");
+  originalCanvas.width = cropCanvas.width;
+  originalCanvas.height = cropCanvas.height;
+  const originalContext = originalCanvas.getContext("2d");
+
+  if (!originalContext) {
+    throw new Error("Unable to prepare the image for OCR.");
+  }
+
+  originalContext.fillStyle = "#ffffff";
+  originalContext.fillRect(0, 0, originalCanvas.width, originalCanvas.height);
+  originalContext.drawImage(cropCanvas, 0, 0);
+
   return {
+    originalCanvas,
     grayscaleCanvas,
     binaryCanvas,
   };
@@ -282,6 +299,17 @@ function scoreOcrText(text: string) {
   const noisePenalty = (text.match(/[=%|_]{2,}|[^\w\s.,:()/+-]{2,}/g) ?? []).length * 4;
 
   return ingredientLikeLines * 12 + methodLikeLines * 8 + lines.length * 2 - noisePenalty;
+}
+
+function scoreStructuredOcrText(text: string) {
+  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const normalized = text.toLowerCase();
+  const quantityLines = lines.filter((line) => /^\s*\d{1,4}\s*(g|kg|ml|cl|dl|l)?\s*[A-Za-zÃ¥Ã¤Ã¶Ã…Ã„Ã–]/i.test(line)).length;
+  const knownTerms = recipeOcrHints.filter((hint) => normalized.includes(hint)).length;
+  const shortLines = lines.filter((line) => line.length <= 3).length;
+  const fragmentedTokens = (text.match(/\b[A-Za-zÃ¥Ã¤Ã¶Ã…Ã„Ã–]{1,2}\b/g) ?? []).length;
+
+  return scoreOcrText(text) + quantityLines * 14 + knownTerms * 20 - shortLines * 5 - fragmentedTokens * 2;
 }
 
 async function getOcrWorker() {
@@ -302,12 +330,12 @@ async function extractPhotoText(file: File, timeoutMessage: string) {
   await worker.setParameters({
     preserve_interword_spaces: "1",
     tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZÅÄÖabcdefghijklmnopqrstuvwxyzåäö0123456789 .,:%=()/-",
-    tessedit_pageseg_mode: String(tesseractModule.PSM.SINGLE_COLUMN),
+    tessedit_pageseg_mode: String(tesseractModule.PSM.AUTO),
     user_defined_dpi: "300",
   });
 
   const primaryResult = await withTimeout(
-    worker.recognize(preparedCanvases.grayscaleCanvas, { rotateAuto: true }),
+    worker.recognize(preparedCanvases.originalCanvas, { rotateAuto: true }),
     imageUploadTimeoutMs,
     timeoutMessage,
   );
@@ -315,11 +343,24 @@ async function extractPhotoText(file: File, timeoutMessage: string) {
   await worker.setParameters({
     preserve_interword_spaces: "1",
     tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZÅÄÖabcdefghijklmnopqrstuvwxyzåäö0123456789 .,:%=()/-",
-    tessedit_pageseg_mode: String(tesseractModule.PSM.SPARSE_TEXT),
+    tessedit_pageseg_mode: String(tesseractModule.PSM.SINGLE_BLOCK),
     user_defined_dpi: "300",
   });
 
   const fallbackResult = await withTimeout(
+    worker.recognize(preparedCanvases.grayscaleCanvas, { rotateAuto: true }),
+    imageUploadTimeoutMs,
+    timeoutMessage,
+  );
+
+  await worker.setParameters({
+    preserve_interword_spaces: "1",
+    tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZÃ…Ã„Ã–abcdefghijklmnopqrstuvwxyzÃ¥Ã¤Ã¶0123456789 .,:%=()/-",
+    tessedit_pageseg_mode: String(tesseractModule.PSM.SPARSE_TEXT),
+    user_defined_dpi: "300",
+  });
+
+  const binaryResult = await withTimeout(
     worker.recognize(preparedCanvases.binaryCanvas, { rotateAuto: true }),
     imageUploadTimeoutMs,
     timeoutMessage,
@@ -327,7 +368,8 @@ async function extractPhotoText(file: File, timeoutMessage: string) {
 
   const primaryText = primaryResult.data.text.trim();
   const fallbackText = fallbackResult.data.text.trim();
-  return scoreOcrText(primaryText) >= scoreOcrText(fallbackText) ? primaryText : fallbackText;
+  const binaryText = binaryResult.data.text.trim();
+  return [primaryText, fallbackText, binaryText].sort((left, right) => scoreStructuredOcrText(right) - scoreStructuredOcrText(left))[0] ?? "";
 }
 
 export function ImportPreviewBuilder({
