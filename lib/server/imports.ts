@@ -109,6 +109,32 @@ const commonRecipeTerms = [
   "ror",
   "tillsatt",
 ];
+const extraMethodVerbHints = ["sikta", "rora", "hall", "lat"];
+const ingredientNameHints = [
+  "mjol",
+  "vetemjol",
+  "bakpulver",
+  "vaniljkram",
+  "smorkram",
+  "mousse",
+  "fyllning",
+  "salt",
+  "socker",
+  "florsocker",
+  "strosocker",
+  "glykos",
+  "choklad",
+  "smor",
+  "gradde",
+  "kaffegradde",
+  "mjolk",
+  "kakao",
+  "vanilj",
+  "agg",
+  "olja",
+  "jast",
+];
+const extraCommonRecipeTerms = ["mjol", "vetemjol", "bakpulver", "salt", "kaka", "vaniljkram", "smorkram", "mousse", "fyllning"];
 function normalizeLine(line: string) {
   return line
     .replace(/\u00a0/g, " ")
@@ -228,7 +254,10 @@ function levenshteinDistance(left: string, right: string) {
 function restoreNordicWord(value: string) {
   return value
     .replace(/gradde/gi, "grädde")
+    .replace(/mjol/gi, "mjöl")
     .replace(/smor/gi, "smör")
+    .replace(/vaniljkram/gi, "vaniljkräm")
+    .replace(/smorkram/gi, "smörkräm")
     .replace(/strosocker/gi, "strösocker")
     .replace(/mjolk/gi, "mjölk")
     .replace(/tillsatt/gi, "tillsätt")
@@ -257,7 +286,7 @@ function repairRecipeToken(token: string) {
   let bestMatch = candidate;
   let bestDistance = Number.POSITIVE_INFINITY;
 
-  for (const term of commonRecipeTerms) {
+  for (const term of [...commonRecipeTerms, ...extraCommonRecipeTerms]) {
     const distance = levenshteinDistance(candidate, term);
     if (distance < bestDistance) {
       bestDistance = distance;
@@ -423,6 +452,16 @@ function sanitizeInstruction(line: string) {
   );
 }
 
+function containsIngredientHint(line: string) {
+  const canonical = canonicalizeForMatch(line);
+  return ingredientNameHints.some((hint) => canonical.includes(hint));
+}
+
+function startsWithMethodVerb(line: string) {
+  const canonical = canonicalizeForMatch(line);
+  return [...methodVerbHints, ...extraMethodVerbHints].some((verb) => canonical.startsWith(verb));
+}
+
 function isLikelyDescriptionLine(line: string) {
   const normalized = sanitizeInstruction(line);
   if (!normalized || isLikelyNoiseLine(normalized) || looksLikeIngredientLine(normalized) || looksLikeMethodLine(normalized)) {
@@ -430,7 +469,7 @@ function isLikelyDescriptionLine(line: string) {
   }
 
   const wordCount = normalized.split(/\s+/).length;
-  return wordCount >= 4 && !/\d/.test(normalized);
+  return wordCount >= 4 && !/\d/.test(normalized) && !containsIngredientHint(normalized);
 }
 
 function isLikelyNoiseLine(line: string) {
@@ -461,7 +500,11 @@ function looksLikeMethodLine(line: string) {
     return true;
   }
 
-  return methodVerbHints.some((verb) => canonical.includes(verb));
+  if (startsWithMethodVerb(normalized)) {
+    return true;
+  }
+
+  return [...methodVerbHints, ...extraMethodVerbHints].some((verb) => canonical.includes(verb));
 }
 
 function splitCompoundLine(line: string) {
@@ -532,6 +575,10 @@ function parseInlineIngredientLine(line: string) {
     return null;
   }
 
+  if (!amountLastMatch[3] && !containsIngredientHint(amountLastName) && amountLastName.split(/\s+/).length > 4) {
+    return null;
+  }
+
   return {
     name: amountLastName,
     quantity: parseQuantity(amountLastMatch[2]) || 1,
@@ -564,7 +611,15 @@ function looksLikeIngredientLine(line: string) {
     return false;
   }
 
-  return /\d/.test(normalized) && ingredientLineUnitPattern.test(normalized);
+  if (!/\d/.test(normalized)) {
+    return false;
+  }
+
+  if (ingredientLineUnitPattern.test(normalized)) {
+    return true;
+  }
+
+  return containsIngredientHint(normalized) && normalized.split(/\s+/).length <= 5;
 }
 
 function isLikelyTitleCandidate(line: string) {
