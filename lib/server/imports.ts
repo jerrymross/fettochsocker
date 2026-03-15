@@ -39,10 +39,24 @@ const methodHeadings = new Set([
 const amountHeadings = new Set(["amount", "amounts", "mangd", "mangdg", "quantity", "quantityg", "gram"]);
 const yieldPrefixes = ["serves", "yield", "makes", "ger", "portioner", "ca"];
 const metadataHeadings = new Set(["riktlinjer", "guidelines", "ekonomi", "economy", "naringsvarde", "nutrition"]);
+const ingredientLineUnitPattern =
+  /(kg|g|gr|gram|grams|ml|cl|dl|l|tsk|tsp|teaspoon|teaspoons|msk|tbsp|tablespoon|tablespoons|st|pcs|pc|stycken?)/i;
+const ingredientUnitAliases: Array<[RegExp, IngredientUnit]> = [
+  [/^(g|gr|gram|grams)$/i, IngredientUnit.G],
+  [/^kg$/i, IngredientUnit.KG],
+  [/^ml$/i, IngredientUnit.ML],
+  [/^cl$/i, IngredientUnit.CL],
+  [/^dl$/i, IngredientUnit.DL],
+  [/^l$/i, IngredientUnit.L],
+  [/^(tsk|tsp|teaspoon|teaspoons)$/i, IngredientUnit.TSP],
+  [/^(msk|tbsp|tablespoon|tablespoons)$/i, IngredientUnit.TBSP],
+  [/^(st|pcs|pc|stycken?)$/i, IngredientUnit.PCS],
+];
 function normalizeLine(line: string) {
   return line
     .replace(/\u00a0/g, " ")
     .replace(/[\u2010-\u2015]/g, "-")
+    .replace(/[|]/g, "\n")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -50,6 +64,8 @@ function normalizeLine(line: string) {
 function normalizeExtractedText(rawText: string) {
   return rawText
     .replace(/\r/g, "")
+    .replace(/([A-Za-z\u00c5\u00c4\u00d6\u00e5\u00e4\u00f6])\s+(?=(ingredienser|ingredients|steg|steps|method|metod|instructions|instruktioner)\b)/gi, "$1\n")
+    .replace(/\b(ingredienser|ingredients|steg|steps|method|metod|instructions|instruktioner)\s*:/gi, "$1\n")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
@@ -136,6 +152,29 @@ function parseQuantity(line: string) {
   return parseQuantityValue(line);
 }
 
+function detectIngredientUnit(value?: string | null) {
+  if (!value) {
+    return IngredientUnit.G;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  for (const [pattern, unit] of ingredientUnitAliases) {
+    if (pattern.test(normalized)) {
+      return unit;
+    }
+  }
+
+  return IngredientUnit.G;
+}
+
+function extractIngredientUnitFromLine(line: string) {
+  const match = normalizeLine(line).match(
+    /(\bkg\b|\bg\b|\bgr\b|\bgram\b|\bgrams\b|\bml\b|\bcl\b|\bdl\b|\bl\b|\btsk\b|\btsp\b|\bteaspoon(?:s)?\b|\bmsk\b|\btbsp\b|\btablespoon(?:s)?\b|\bst\b|\bpcs\b|\bpc\b|\bstycken?\b)/i,
+  );
+
+  return detectIngredientUnit(match?.[0]);
+}
+
 function extractIngredientName(line: string) {
   return line
     .replace(/^\s*[-*•]\s*/, "")
@@ -144,7 +183,7 @@ function extractIngredientName(line: string) {
 }
 
 function looksLikeQuantityOnly(line: string) {
-  return /^(\d+(?:[.,]\d+)?)(\s*-\s*\d+(?:[.,]\d+)?)?\s*(g|gram|grams|kg|ml|cl|dl|l|tsk|tsp|msk|tbsp|st|pcs)?$/i.test(line);
+  return /^(\d+(?:[.,]\d+)?)(\s*-\s*\d+(?:[.,]\d+)?)?\s*(kg|g|gr|gram|grams|ml|cl|dl|l|tsk|tsp|teaspoon|teaspoons|msk|tbsp|tablespoon|tablespoons|st|pcs|pc|stycken?)?$/i.test(line);
 }
 
 function isIngredientTableHeader(line: string) {
@@ -177,6 +216,23 @@ function looksLikeInstruction(line: string) {
   return /[.!?]$/.test(normalized) || normalized.includes(",");
 }
 
+function splitCompoundLine(line: string) {
+  return line
+    .replace(/\b(ingredienser|ingredients|steg|steps|method|metod|instructions|instruktioner)\b/gi, "\n$1\n")
+    .replace(/\s+(?=\d+[.)]\s+[A-Za-z\u00c5\u00c4\u00d6\u00e5\u00e4\u00f6])/g, "\n")
+    .split(/\n+/)
+    .map(normalizeLine)
+    .filter(Boolean);
+}
+
+function buildRecipeLines(rawText: string) {
+  return normalizeExtractedText(rawText)
+    .split(/\r?\n/)
+    .flatMap((line) => splitCompoundLine(line))
+    .map(normalizeLine)
+    .filter(Boolean);
+}
+
 function isLikelyMethodTransition(lines: string[], index: number) {
   const line = normalizeLine(lines[index] ?? "");
   const nextLine = normalizeLine(lines[index + 1] ?? "");
@@ -197,16 +253,94 @@ function isLikelyMethodTransition(lines: string[], index: number) {
 }
 
 function parseInlineIngredientLine(line: string) {
-  const match = line.match(/^(.*\D)\s+(\d+(?:[.,]\d+)?(?:\s*-\s*\d+(?:[.,]\d+)?)?)\s*(?:g|gram|grams|kg|ml|cl|dl|l|tsk|tsp|msk|tbsp|st|pcs)?$/i);
-  if (!match) {
+  const amountFirstMatch = line.match(
+    /^\s*[-*â€¢]?\s*(\d+(?:[.,]\d+)?(?:\s*-\s*\d+(?:[.,]\d+)?)?)\s*(kg|g|gr|gram|grams|ml|cl|dl|l|tsk|tsp|teaspoon|teaspoons|msk|tbsp|tablespoon|tablespoons|st|pcs|pc|stycken?)?\s+(.+)$/i,
+  );
+
+  if (amountFirstMatch) {
+    return {
+      name: extractIngredientName(amountFirstMatch[3]).trim(),
+      quantity: parseQuantity(amountFirstMatch[1]) || 1,
+      unit: detectIngredientUnit(amountFirstMatch[2]),
+    };
+  }
+
+  const amountLastMatch = line.match(
+    /^(.*\D)\s+(\d+(?:[.,]\d+)?(?:\s*-\s*\d+(?:[.,]\d+)?)?)\s*(kg|g|gr|gram|grams|ml|cl|dl|l|tsk|tsp|teaspoon|teaspoons|msk|tbsp|tablespoon|tablespoons|st|pcs|pc|stycken?)?$/i,
+  );
+
+  if (!amountLastMatch) {
     return null;
   }
 
   return {
-    name: extractIngredientName(match[1]).trim(),
-    quantity: parseQuantity(match[2]) || 1,
-    unit: IngredientUnit.G,
+    name: extractIngredientName(amountLastMatch[1]).trim(),
+    quantity: parseQuantity(amountLastMatch[2]) || 1,
+    unit: detectIngredientUnit(amountLastMatch[3]),
   };
+}
+
+function looksLikeIngredientLine(line: string) {
+  const normalized = normalizeLine(line);
+  if (!normalized) {
+    return false;
+  }
+
+  if (
+    isIngredientHeading(normalized) ||
+    isMethodHeading(normalized) ||
+    isAmountHeading(normalized) ||
+    isYieldLine(normalized) ||
+    isStepStart(normalized) ||
+    isBareStepNumber(normalized)
+  ) {
+    return false;
+  }
+
+  if (parseInlineIngredientLine(normalized) || looksLikeQuantityOnly(normalized)) {
+    return true;
+  }
+
+  return /\d/.test(normalized) && ingredientLineUnitPattern.test(normalized);
+}
+
+function isLikelyTitleCandidate(line: string) {
+  const normalized = normalizeLine(line);
+  if (!normalized || normalized.length < 3 || normalized.length > 90) {
+    return false;
+  }
+
+  if (
+    isIngredientHeading(normalized) ||
+    isMethodHeading(normalized) ||
+    isAmountHeading(normalized) ||
+    isYieldLine(normalized) ||
+    looksLikeIngredientLine(normalized) ||
+    isStepStart(normalized) ||
+    looksLikeInstruction(normalized)
+  ) {
+    return false;
+  }
+
+  return (normalized.match(/[A-Za-z\u00c5\u00c4\u00d6\u00e5\u00e4\u00f6]/g) ?? []).length >= 3;
+}
+
+function inferIngredientLines(lines: string[], startIndex: number, endIndex: number) {
+  const collected: string[] = [];
+
+  for (let index = startIndex; index < endIndex; index += 1) {
+    const line = lines[index];
+    if (looksLikeIngredientLine(line) || looksLikeQuantityOnly(line)) {
+      collected.push(line);
+      continue;
+    }
+
+    if (collected.length > 0 && (looksLikeInstruction(line) || isStepStart(line) || isMethodHeading(line))) {
+      break;
+    }
+  }
+
+  return collected;
 }
 
 function isLikelySectionTitle(line: string) {
@@ -257,7 +391,7 @@ function parseIngredientLines(lines: string[]) {
       ingredients.push({
         name: pendingName,
         quantity: parseQuantity(line) || 1,
-        unit: IngredientUnit.G,
+        unit: extractIngredientUnitFromLine(line),
       });
       pendingName = null;
       continue;
@@ -268,7 +402,7 @@ function parseIngredientLines(lines: string[]) {
       ingredients.push({
         name: parsedInlineIngredient.name || "Ingredient",
         quantity: parsedInlineIngredient.quantity,
-        unit: IngredientUnit.G,
+        unit: parsedInlineIngredient.unit,
       });
       pendingName = null;
       continue;
@@ -392,17 +526,28 @@ function detectFileKind(file: File): ImportFileKind {
 }
 
 export function mapRecipeFromText(rawText: string): ParsedRecipePreview {
-  const lines = rawText
-    .split(/\r?\n/)
-    .map(normalizeLine)
-    .filter(Boolean);
-
-  const title = sanitizeTitle(lines[0] || "Imported recipe") || "Imported recipe";
+  const lines = buildRecipeLines(rawText);
   const ingredientIndex = lines.findIndex((line) => isIngredientHeading(line));
   const stepIndex = lines.findIndex((line, index) => index > ingredientIndex && (isMethodHeading(line) || isStepStart(line) || isBareStepNumber(line)));
+  const firstSectionIndex =
+    [ingredientIndex, stepIndex].filter((value) => value >= 0).sort((left, right) => left - right)[0] ?? lines.length;
+  const titleCandidate =
+    lines.slice(0, Math.min(firstSectionIndex > 0 ? firstSectionIndex : 1, 6)).find((line) => isLikelyTitleCandidate(line)) ??
+    lines[0] ??
+    "Imported recipe";
+  const title = sanitizeTitle(titleCandidate) || "Imported recipe";
+  const titleIndex = Math.max(lines.findIndex((line) => line === titleCandidate), 0);
   const descriptionLines = lines
-    .slice(1, ingredientIndex > 0 ? ingredientIndex : 3)
-    .filter((line) => !isAmountHeading(line) && !isIngredientHeading(line) && !isMethodHeading(line) && !isIngredientTableHeader(line));
+    .slice(titleIndex + 1, firstSectionIndex > titleIndex ? firstSectionIndex : Math.min(titleIndex + 3, lines.length))
+    .filter(
+      (line) =>
+        !isAmountHeading(line) &&
+        !isIngredientHeading(line) &&
+        !isMethodHeading(line) &&
+        !isIngredientTableHeader(line) &&
+        !looksLikeIngredientLine(line) &&
+        !isStepStart(line),
+    );
   const ingredientSectionEnd =
     stepIndex > ingredientIndex
       ? stepIndex
@@ -410,11 +555,15 @@ export function mapRecipeFromText(rawText: string): ParsedRecipePreview {
   const ingredientLines =
     ingredientIndex >= 0
       ? lines.slice(ingredientIndex + 1, ingredientSectionEnd)
-      : lines.filter((line) => looksLikeQuantityOnly(line) || /\b(g|kg|ml|cl|dl|l|tsk|tsp|msk|tbsp|st|pcs)\b/i.test(line));
+      : inferIngredientLines(lines, titleIndex + 1, stepIndex >= 0 ? stepIndex : lines.length);
+  const lastIngredientIndex =
+    ingredientLines.length > 0 ? lines.findIndex((line) => line === ingredientLines[ingredientLines.length - 1]) : -1;
   const stepLines =
     stepIndex >= 0
       ? lines.slice(isMethodHeading(lines[stepIndex]) ? stepIndex + 1 : stepIndex, findNextSectionIndex(lines, stepIndex + 1))
-      : lines.filter((line) => isStepStart(line));
+      : lines
+          .slice(lastIngredientIndex >= 0 ? lastIngredientIndex + 1 : titleIndex + 1)
+          .filter((line) => isStepStart(line) || looksLikeInstruction(line));
 
   const ingredients = parseIngredientLines(ingredientLines);
   const steps = parseStepLines(stepLines);
