@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useDeferredValue, useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -11,27 +11,64 @@ type SearchRecipe = {
 };
 
 export function SidebarQuickSearch({
-  recipes,
   placeholder,
   noMatchesLabel,
+  loadingLabel,
   onNavigate,
 }: {
-  recipes: SearchRecipe[];
   placeholder: string;
   noMatchesLabel: string;
+  loadingLabel: string;
   onNavigate?: () => void;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
+  const [results, setResults] = useState<SearchRecipe[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const deferredQuery = useDeferredValue(query);
 
-  const normalizedQuery = query.trim().toLowerCase();
-  const filteredRecipes =
-    normalizedQuery === ""
-      ? []
-      : recipes.filter((recipe) => recipe.title.toLowerCase().includes(normalizedQuery)).slice(0, 6);
+  const normalizedQuery = deferredQuery.trim();
+
+  useEffect(() => {
+    if (normalizedQuery.length < 2) {
+      setResults([]);
+      setIsLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch(`/api/recipes/search?query=${encodeURIComponent(normalizedQuery)}`, {
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          setResults([]);
+          return;
+        }
+
+        const payload = (await response.json()) as { recipes?: SearchRecipe[] };
+        setResults(payload.recipes ?? []);
+      } catch (error) {
+        if ((error as Error).name !== "AbortError") {
+          setResults([]);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    }, 180);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeoutId);
+    };
+  }, [normalizedQuery]);
 
   function handleSelect(recipeId: string) {
     setQuery("");
+    setResults([]);
     onNavigate?.();
     router.push(`/recipes/${recipeId}`);
     router.refresh();
@@ -50,10 +87,12 @@ export function SidebarQuickSearch({
         />
       </div>
 
-      {normalizedQuery ? (
+      {normalizedQuery.length >= 2 ? (
         <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-10 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/96 shadow-[0_20px_44px_-24px_rgba(15,23,42,0.28)] backdrop-blur">
-          {filteredRecipes.length > 0 ? (
-            filteredRecipes.map((recipe) => (
+          {isLoading ? (
+            <div className="px-3 py-3 text-sm text-slate-600">{loadingLabel}</div>
+          ) : results.length > 0 ? (
+            results.map((recipe) => (
               <button
                 key={recipe.id}
                 className={cn(

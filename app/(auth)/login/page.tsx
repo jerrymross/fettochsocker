@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/auth/login-form";
 import { LanguageToggle } from "@/components/language-toggle";
@@ -39,7 +40,14 @@ export default async function LoginPage() {
             <div className="flex items-center justify-between gap-4">
               <LanguageToggle className="border-white/10 bg-white/5 text-white" />
             </div>
-            <img src="/logo.png" alt={dictionary.common.brand} className="mt-4 w-full object-contain max-h-[35dvh]" />
+            <Image
+              alt={dictionary.common.brand}
+              className="mt-4 h-auto w-full object-contain max-h-[35dvh]"
+              height={1024}
+              priority
+              src="/logo.png"
+              width={1024}
+            />
           </div>
           <h1 className="mt-8 max-w-xl text-[3rem] font-semibold leading-[1.06] tracking-[-0.04em]">{dictionary.auth.loginHeroTitle}</h1>
           <p className="mt-5 max-w-xl text-lg leading-8 text-white/60">{dictionary.auth.loginHeroDescription}</p>
@@ -62,7 +70,14 @@ export default async function LoginPage() {
             <div className="flex items-center justify-between gap-4">
               <LanguageToggle />
             </div>
-            <img src="/logo.png" alt={dictionary.common.brand} className="w-full object-contain max-h-[40dvh]" />
+            <Image
+              alt={dictionary.common.brand}
+              className="h-auto w-full object-contain max-h-[40dvh]"
+              height={1024}
+              priority
+              src="/logo.png"
+              width={1024}
+            />
           </div>
           <div className="mt-3 flex items-center gap-2.5 lg:mt-0">
             <span className="hidden h-px w-5 bg-[#c9ef38] lg:block" />

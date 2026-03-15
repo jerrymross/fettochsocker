@@ -3,7 +3,7 @@ import { getDictionary } from "@/lib/i18n";
 import { listRecipeCategories } from "@/lib/server/recipe-categories";
 import { getLocale } from "@/lib/server/locale";
 import { requireModuleEnabled } from "@/lib/server/modules";
-import { listRecipes } from "@/lib/server/recipes";
+import { listRecipeSummaries } from "@/lib/server/recipes";
 import { requireSession } from "@/lib/server/session";
 import { formatDate, formatGrams, toNumber } from "@/lib/utils";
 import { PageHeader } from "@/components/dashboard/page-header";
@@ -15,7 +15,10 @@ export default async function RecipesPage() {
   const dictionary = getDictionary(locale);
   const session = await requireSession();
   await requireModuleEnabled("RECIPES");
-  const [recipes, categories] = await Promise.all([listRecipes(session.userId, session.role), listRecipeCategories()]);
+  const [recipes, categories] = await Promise.all([
+    listRecipeSummaries(session.userId, session.role),
+    listRecipeCategories(),
+  ]);
   const recipeItems = recipes.map((recipe) => ({
     id: recipe.id,
     title: recipe.title,
@@ -26,7 +29,7 @@ export default async function RecipesPage() {
       .map((item) => ({ id: item.category.id, name: item.category.name }))
       .sort((left, right) => left.name.localeCompare(right.name, undefined, { sensitivity: "base" })),
     totalWeight: formatGrams(toNumber(recipe.totalWeightGrams)),
-    ingredientCount: recipe.ingredients.length,
+    ingredientCount: recipe._count.ingredients,
     updatedAt: formatDate(recipe.updatedAt),
     updatedAtValue: recipe.updatedAt.toISOString(),
   }));

@@ -25,12 +25,12 @@ type SidebarLink = {
 export function AppSidebar({
   userName,
   modules,
-  recipeSearchItems,
+  hasRecipesModule,
   isAdmin,
 }: {
   userName: string;
   modules: SidebarLink[];
-  recipeSearchItems: Array<{ id: string; title: string }>;
+  hasRecipesModule: boolean;
   isAdmin: boolean;
 }) {
   const pathname = usePathname();
@@ -77,12 +77,12 @@ export function AppSidebar({
       brand={dictionary.common.brand}
       description=""
       topSlot={({ closeMenu }) =>
-        recipeSearchItems.length > 0 ? (
+        hasRecipesModule ? (
           <SidebarQuickSearch
             noMatchesLabel={dictionary.recipesPage.noMatches}
             onNavigate={closeMenu}
             placeholder={dictionary.common.quickSearch}
-            recipes={recipeSearchItems}
+            loadingLabel={dictionary.common.loading}
           />
         ) : null
       }

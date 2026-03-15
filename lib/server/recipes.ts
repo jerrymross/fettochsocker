@@ -82,6 +82,32 @@ export async function listRecipes(userId: string, role: UserRole) {
   });
 }
 
+export async function listRecipeSummaries(userId: string, role: UserRole) {
+  return prisma.recipe.findMany({
+    where: buildRecipeAccessWhere(userId, role),
+    orderBy: { updatedAt: "desc" },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      isPublic: true,
+      authorId: true,
+      totalWeightGrams: true,
+      updatedAt: true,
+      categories: {
+        include: {
+          category: true,
+        },
+      },
+      _count: {
+        select: {
+          ingredients: true,
+        },
+      },
+    },
+  });
+}
+
 export async function countRecipes(userId: string, role: UserRole) {
   return prisma.recipe.count({
     where: buildRecipeAccessWhere(userId, role),
@@ -110,6 +136,30 @@ export async function listRecipeSearchItems(userId: string, role: UserRole) {
       title: true,
     },
     orderBy: { title: "asc" },
+  });
+}
+
+export async function searchRecipeItems(userId: string, role: UserRole, query: string, take = 6) {
+  const normalizedQuery = query.trim();
+
+  if (normalizedQuery.length === 0) {
+    return [];
+  }
+
+  return prisma.recipe.findMany({
+    where: {
+      ...buildRecipeAccessWhere(userId, role),
+      title: {
+        contains: normalizedQuery,
+        mode: "insensitive",
+      },
+    },
+    select: {
+      id: true,
+      title: true,
+    },
+    orderBy: { title: "asc" },
+    take,
   });
 }
 

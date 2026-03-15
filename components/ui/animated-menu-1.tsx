@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import Image from "next/image";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import { Menu, X } from "lucide-react";
-import { AnimatePresence, motion, useMotionValue, type PanInfo, type Variants } from "framer-motion";
+import { AnimatePresence, motion, useMotionValue, useReducedMotion, type PanInfo, type Variants } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 export type AnimatedMenuItem = {
@@ -33,7 +34,22 @@ export default function AnimatedMenuComponent({
   hint?: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
   const dragX = useMotionValue(0);
+  const prefersReducedMotion = useReducedMotion();
+  const useSimpleMotion = prefersReducedMotion || isMobileViewport;
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 640px)");
+    const updateViewport = () => setIsMobileViewport(mediaQuery.matches);
+
+    updateViewport();
+    mediaQuery.addEventListener("change", updateViewport);
+
+    return () => {
+      mediaQuery.removeEventListener("change", updateViewport);
+    };
+  }, []);
 
   function closeMenu() {
     setIsOpen(false);
@@ -53,7 +69,8 @@ export default function AnimatedMenuComponent({
     closed: {
       x: "-100%",
       transition: {
-        type: "spring",
+        duration: useSimpleMotion ? 0.18 : undefined,
+        type: useSimpleMotion ? "tween" : "spring",
         stiffness: 220,
         damping: 30,
         mass: 0.85,
@@ -62,7 +79,8 @@ export default function AnimatedMenuComponent({
     open: {
       x: 0,
       transition: {
-        type: "spring",
+        duration: useSimpleMotion ? 0.18 : undefined,
+        type: useSimpleMotion ? "tween" : "spring",
         stiffness: 220,
         damping: 30,
         mass: 0.85,
@@ -71,13 +89,14 @@ export default function AnimatedMenuComponent({
   };
 
   const itemVariants: Variants = {
-    closed: { x: -42, opacity: 0 },
+    closed: { x: useSimpleMotion ? 0 : -42, opacity: 0 },
     open: (index: number) => ({
       x: 0,
       opacity: 1,
       transition: {
-        delay: 0.1 + index * 0.06,
-        type: "spring",
+        delay: useSimpleMotion ? 0 : 0.1 + index * 0.06,
+        duration: useSimpleMotion ? 0.12 : undefined,
+        type: useSimpleMotion ? "tween" : "spring",
         stiffness: 240,
         damping: 24,
       },
@@ -105,7 +124,7 @@ export default function AnimatedMenuComponent({
         {isOpen ? (
           <motion.button
             aria-label="Close navigation"
-            className="fixed inset-0 z-40 bg-slate-900/28 backdrop-blur-[6px]"
+            className="fixed inset-0 z-40 bg-slate-900/28 sm:backdrop-blur-[6px]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -118,9 +137,9 @@ export default function AnimatedMenuComponent({
       <motion.nav
         animate={isOpen ? "open" : "closed"}
         className="fixed left-0 top-0 z-50 flex h-[100dvh] w-[24rem] max-w-[92vw] flex-col overflow-hidden border-r border-black/[0.06] bg-white text-slate-950 shadow-[0_40px_90px_-36px_rgba(17,17,16,0.30)]"
-        drag="x"
+        drag={useSimpleMotion ? false : "x"}
         dragConstraints={{ left: -320, right: 0 }}
-        dragElastic={0.16}
+        dragElastic={useSimpleMotion ? 0 : 0.16}
         initial="closed"
         onDragEnd={handleDragEnd}
         style={{ x: dragX }}
@@ -150,7 +169,14 @@ export default function AnimatedMenuComponent({
             transition={{ delay: 0.08, type: "spring", stiffness: 180 }}
           >
             <div className="flex flex-col gap-2">
-              <img src="/logo.png" alt={brand} className="w-full object-contain max-h-[40dvh]" />
+              <Image
+                alt={brand}
+                className="h-auto w-full object-contain max-h-[40dvh]"
+                height={1024}
+                sizes="(max-width: 640px) 80vw, 24rem"
+                src="/logo.png"
+                width={1024}
+              />
             </div>
             {title ? <h2 className="mt-3 max-w-[10ch] text-[2rem] font-semibold leading-[0.98] text-slate-950">{title}</h2> : null}
             {description ? <p className="mt-2 max-w-[24rem] text-sm leading-6 text-slate-600">{description}</p> : null}
