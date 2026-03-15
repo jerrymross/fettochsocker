@@ -74,13 +74,82 @@ const ingredientUnitAliases: Array<[RegExp, IngredientUnit]> = [
   [/^(msk|tbsp|tablespoon|tablespoons)$/i, IngredientUnit.TBSP],
   [/^(st|pcs|pc|stycken?)$/i, IngredientUnit.PCS],
 ];
+const recipeWordReplacements: Array<[RegExp, string]> = [
+  [/\bganache\s+\d{1,2}\b/gi, "ganache"],
+  [/\bkaffegr[a-z\u00e5\u00e4\u00f6]{2,8}\b/gi, "kaffegradde"],
+  [/\bgr[a-z\u00e5\u00e4\u00f6]{2,6}dde\b/gi, "gradde"],
+  [/\b(?:f|ph)?l?[o0]r?socker\b/gi, "florsocker"],
+  [/\b(?:g[il1]y?[kmu][o0]s|glukos)\b/gi, "glykos"],
+  [/\b(?:smor|smon|spon|smoor)\b\.?/gi, "smor"],
+  [/\b(?:kaf+egr[ae]dde)\b/gi, "kaffegradde"],
+  [/\bsv[a-z]{3,6}\b(?=.*koka)/gi, "gradde"],
+  [/\bgimus\b/gi, "glykos"],
+  [/\bluks\b/gi, "glykos"],
+  [/\baorsocker\b/gi, "florsocker"],
+  [/\bsme\b/gi, "smor"],
+];
+const commonRecipeTerms = [
+  "ganache",
+  "kaffegradde",
+  "vispgradde",
+  "gradde",
+  "smor",
+  "florsocker",
+  "strosocker",
+  "socker",
+  "glykos",
+  "choklad",
+  "mjolk",
+  "vanilj",
+  "kakao",
+  "koka",
+  "blanda",
+  "vispa",
+  "smalt",
+  "ror",
+  "tillsatt",
+];
 function normalizeLine(line: string) {
   return line
     .replace(/\u00a0/g, " ")
     .replace(/[\u2010-\u2015]/g, "-")
     .replace(/[|]/g, "\n")
     .replace(/\s+/g, " ")
+    .replace(/\s*[=:]+$/g, "")
     .trim();
+}
+
+function sanitizeIngredientName(name: string) {
+  const normalized = repairRecipeText(
+    extractIngredientName(name)
+      .replace(/\b[il1]\b/gi, " ")
+      .replace(/\b[a-z]{1,2}\b(?=\s+(kaffegrädde|grädde|smör|florsocker|strösocker|socker|glykos|choklad)\b)/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim(),
+  );
+
+  if (/^c[.\-]?$/i.test(normalized)) {
+    return "Choklad";
+  }
+
+  return normalized
+    .replace(/\bfe\b$/i, "")
+    .replace(/\b(?:od|ool)\b$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function cleanupOcrLineArtifacts(line: string) {
+  return repairRecipeText(
+    normalizeLine(line)
+      .replace(/(\d)\s*%/g, "$15")
+      .replace(/(\d{1,4})\s*9(?=\s+[A-Za-z\u00c5\u00c4\u00d6\u00e5\u00e4\u00f6])/g, "$1 g")
+      .replace(/(\d{1,4})g(?=\s*[A-Za-z\u00c5\u00c4\u00d6\u00e5\u00e4\u00f6])/gi, "$1 g ")
+      .replace(/^\s*sx\s+([A-Za-z\u00c5\u00c4\u00d6\u00e5\u00e4\u00f6. ]+?)\s*[.:]?\s*\d?\s*$/i, "40 g $1")
+      .replace(/^\s*oop\s+c(?:[.\-\s]|$).*$/i, "300 g c.")
+      .replace(/\s+/g, " ")
+      .trim(),
+  );
 }
 
 function normalizeExtractedText(rawText: string) {
@@ -118,8 +187,113 @@ function canonicalizeForMatch(line: string) {
     .replace(/[^a-z0-9]+/g, "");
 }
 
+function toAsciiWord(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function levenshteinDistance(left: string, right: string) {
+  if (left === right) {
+    return 0;
+  }
+
+  if (!left.length) {
+    return right.length;
+  }
+
+  if (!right.length) {
+    return left.length;
+  }
+
+  const previous = Array.from({ length: right.length + 1 }, (_, index) => index);
+
+  for (let row = 0; row < left.length; row += 1) {
+    let diagonal = previous[0];
+    previous[0] = row + 1;
+
+    for (let column = 0; column < right.length; column += 1) {
+      const saved = previous[column + 1];
+      const cost = left[row] === right[column] ? 0 : 1;
+      previous[column + 1] = Math.min(previous[column + 1] + 1, previous[column] + 1, diagonal + cost);
+      diagonal = saved;
+    }
+  }
+
+  return previous[right.length];
+}
+
+function restoreNordicWord(value: string) {
+  return value
+    .replace(/gradde/gi, "grädde")
+    .replace(/smor/gi, "smör")
+    .replace(/strosocker/gi, "strösocker")
+    .replace(/mjolk/gi, "mjölk")
+    .replace(/tillsatt/gi, "tillsätt")
+    .replace(/ror/gi, "rör")
+    .replace(/smalt/gi, "smält");
+}
+
+function repairRecipeToken(token: string) {
+  const prefix = token.match(/^[^A-Za-z\u00c5\u00c4\u00d6\u00e5\u00e4\u00f6]*/u)?.[0] ?? "";
+  const suffix = token.match(/[^A-Za-z\u00c5\u00c4\u00d6\u00e5\u00e4\u00f60-9.]*$/u)?.[0] ?? "";
+  const core = token.slice(prefix.length, token.length - suffix.length || token.length);
+  const asciiCore = toAsciiWord(core);
+
+  if (asciiCore.length < 3) {
+    return token;
+  }
+
+  let candidate = asciiCore;
+  for (const [pattern, replacement] of recipeWordReplacements) {
+    pattern.lastIndex = 0;
+    if (pattern.test(candidate)) {
+      candidate = replacement;
+    }
+  }
+
+  let bestMatch = candidate;
+  let bestDistance = Number.POSITIVE_INFINITY;
+
+  for (const term of commonRecipeTerms) {
+    const distance = levenshteinDistance(candidate, term);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestMatch = term;
+    }
+  }
+
+  const allowedDistance = candidate.length >= 8 ? 3 : candidate.length >= 5 ? 2 : 1;
+  const normalized = bestDistance <= allowedDistance ? bestMatch : candidate;
+  return `${prefix}${restoreNordicWord(normalized)}${suffix}`;
+}
+
+function repairRecipeText(line: string) {
+  return normalizeLine(line)
+    .split(/\s+/)
+    .map((token) => repairRecipeToken(token))
+    .join(" ")
+    .replace(/\s+([.,:;])/g, "$1")
+    .trim();
+}
+
+function toDisplayTitle(value: string) {
+  return value
+    .split(/\s+/)
+    .map((token) => (token ? `${token.slice(0, 1).toUpperCase()}${token.slice(1).toLowerCase()}` : token))
+    .join(" ")
+    .trim();
+}
+
 function sanitizeTitle(line: string) {
-  return line.replace(/\s*-\s*(recept|recipe)$/i, "").trim();
+  return toDisplayTitle(
+    repairRecipeText(line)
+    .replace(/\s*-\s*(recept|recipe)$/i, "")
+    .replace(/\s+\d{1,2}$/i, "")
+    .trim(),
+  );
 }
 
 function isIngredientHeading(line: string) {
@@ -238,6 +412,27 @@ function looksLikeInstruction(line: string) {
   return /[.!?]$/.test(normalized) || normalized.includes(",");
 }
 
+function sanitizeInstruction(line: string) {
+  return repairRecipeText(
+    normalizeLine(line)
+      .replace(/^[=\-*>:.\s]+/, "")
+      .replace(/^[A-Za-z]\s+(?=(koka|blanda|vispa|smält|smalt|rör|ror|tillsätt|tillsatt)\b)/i, "")
+      .replace(/\s*[=:]+$/g, "")
+      .replace(/\s+/g, " ")
+      .trim(),
+  );
+}
+
+function isLikelyDescriptionLine(line: string) {
+  const normalized = sanitizeInstruction(line);
+  if (!normalized || isLikelyNoiseLine(normalized) || looksLikeIngredientLine(normalized) || looksLikeMethodLine(normalized)) {
+    return false;
+  }
+
+  const wordCount = normalized.split(/\s+/).length;
+  return wordCount >= 4 && !/\d/.test(normalized);
+}
+
 function isLikelyNoiseLine(line: string) {
   const normalized = normalizeLine(line);
   const letterCount = (normalized.match(/[A-Za-z\u00c5\u00c4\u00d6\u00e5\u00e4\u00f6]/g) ?? []).length;
@@ -281,6 +476,7 @@ function splitCompoundLine(line: string) {
 function buildRecipeLines(rawText: string) {
   return normalizeExtractedText(rawText)
     .split(/\r?\n/)
+    .map((line) => cleanupOcrLineArtifacts(line))
     .flatMap((line) => splitCompoundLine(line))
     .map(normalizeLine)
     .filter(Boolean);
@@ -312,7 +508,7 @@ function parseInlineIngredientLine(line: string) {
 
   if (amountFirstMatch) {
     return {
-      name: extractIngredientName(amountFirstMatch[3]).trim(),
+      name: sanitizeIngredientName(amountFirstMatch[3]),
       quantity: parseQuantity(amountFirstMatch[1]) || 1,
       unit: detectIngredientUnit(amountFirstMatch[2]),
     };
@@ -326,7 +522,7 @@ function parseInlineIngredientLine(line: string) {
     return null;
   }
 
-  const amountLastName = extractIngredientName(amountLastMatch[1]).trim();
+  const amountLastName = sanitizeIngredientName(amountLastMatch[1]);
   if (
     !amountLastMatch[3] &&
     parseQuantity(amountLastMatch[2]) <= 10 &&
@@ -464,7 +660,7 @@ function parseIngredientLines(lines: string[]) {
 
     if (looksLikeQuantityOnly(line) && pendingName) {
       ingredients.push({
-        name: pendingName,
+        name: sanitizeIngredientName(pendingName),
         quantity: parseQuantity(line) || 1,
         unit: extractIngredientUnitFromLine(line),
       });
@@ -475,7 +671,7 @@ function parseIngredientLines(lines: string[]) {
     const parsedInlineIngredient = parseInlineIngredientLine(line);
     if (parsedInlineIngredient) {
       ingredients.push({
-        name: parsedInlineIngredient.name || "Ingredient",
+        name: sanitizeIngredientName(parsedInlineIngredient.name) || "Ingredient",
         quantity: parsedInlineIngredient.quantity,
         unit: parsedInlineIngredient.unit,
       });
@@ -485,7 +681,7 @@ function parseIngredientLines(lines: string[]) {
 
     if (pendingName) {
       ingredients.push({
-        name: pendingName,
+        name: sanitizeIngredientName(pendingName),
         quantity: 1,
         unit: IngredientUnit.G,
       });
@@ -496,7 +692,7 @@ function parseIngredientLines(lines: string[]) {
 
   if (pendingName) {
     ingredients.push({
-      name: pendingName,
+      name: sanitizeIngredientName(pendingName),
       quantity: 1,
       unit: IngredientUnit.G,
     });
@@ -533,7 +729,7 @@ function parseStepLines(lines: string[]) {
 
     if (isStepStart(line)) {
       if (currentStep) {
-        steps.push({ instruction: currentStep });
+        steps.push({ instruction: sanitizeInstruction(currentStep) });
       }
 
       currentStep = line.replace(/^\d+[.)]\s+/, "").trim();
@@ -543,7 +739,7 @@ function parseStepLines(lines: string[]) {
 
     if (isBareStepNumber(line)) {
       if (currentStep) {
-        steps.push({ instruction: currentStep });
+        steps.push({ instruction: sanitizeInstruction(currentStep) });
       }
 
       currentStep = null;
@@ -573,7 +769,7 @@ function parseStepLines(lines: string[]) {
   }
 
   if (currentStep) {
-    steps.push({ instruction: currentStep });
+    steps.push({ instruction: sanitizeInstruction(currentStep) });
   }
 
   return steps.filter((step) => step.instruction.length > 0);
@@ -611,6 +807,7 @@ function detectFileKind(file: File): ImportFileKind {
 export function mapRecipeFromText(rawText: string): ParsedRecipePreview {
   const sourceLines = normalizeExtractedText(rawText)
     .split(/\r?\n/)
+    .map((line) => cleanupOcrLineArtifacts(line))
     .map(normalizeLine)
     .filter(Boolean);
   const lines = buildRecipeLines(rawText);
@@ -635,19 +832,16 @@ export function mapRecipeFromText(rawText: string): ParsedRecipePreview {
   const titleIndex = Math.max(lines.findIndex((line) => line === titleCandidate), 0);
   const sourceTitleIndex = Math.max(sourceLines.findIndex((line) => line === titleCandidate), 0);
   const sourceStepIndex = sourceLines.findIndex((line, index) => index > sourceTitleIndex && (isMethodHeading(line) || isStepStart(line) || looksLikeMethodLine(line)));
-  const descriptionLines = lines
-    .slice(titleIndex + 1, firstSectionIndex > titleIndex ? firstSectionIndex : Math.min(titleIndex + 3, lines.length))
-    .filter(
-      (line) =>
-        !isAmountHeading(line) &&
-        !isIngredientHeading(line) &&
-        !isMethodHeading(line) &&
-        !isIngredientTableHeader(line) &&
-        !looksLikeIngredientLine(line) &&
-        !isStepStart(line) &&
-        !looksLikeMethodLine(line) &&
-        !isLikelyNoiseLine(line),
-    );
+  const sourceIngredientStart = sourceLines.findIndex((line, index) => index > sourceTitleIndex && looksLikeIngredientLine(line));
+  const sourceDescriptionEndCandidates = [sourceIngredientStart, sourceStepIndex].filter((value) => value >= 0);
+  const sourceDescriptionEnd =
+    sourceDescriptionEndCandidates.length > 0
+      ? Math.min(...sourceDescriptionEndCandidates)
+      : Math.min(sourceTitleIndex + 3, sourceLines.length);
+  const descriptionLines = sourceLines
+    .slice(sourceTitleIndex + 1, sourceDescriptionEnd)
+    .map((line) => sanitizeInstruction(line))
+    .filter((line) => isLikelyDescriptionLine(line));
   const ingredientSectionEnd =
     stepIndex > ingredientIndex
       ? stepIndex

@@ -8,15 +8,39 @@ import type { RecipeCategoryOption } from "@/lib/recipe-categories";
 import type { EditableRecipe } from "@/lib/types";
 import { panelClass, primaryButtonClass, secondaryButtonClass } from "@/lib/ui";
 
+type OcrWorker = {
+  setParameters: (params: Record<string, string>) => Promise<unknown>;
+  recognize: (
+    image: HTMLCanvasElement,
+    options?: {
+      rotateAuto?: boolean;
+    },
+  ) => Promise<{
+    data: {
+      text: string;
+    };
+  }>;
+};
+
+type OcrModule = {
+  createWorker: (languages: string[], oem: string | number) => Promise<OcrWorker>;
+  OEM: {
+    LSTM_ONLY: string | number;
+  };
+  PSM: {
+    SINGLE_COLUMN: string | number;
+    SPARSE_TEXT: string | number;
+  };
+};
+
 type ImportResponse = {
   importId: string;
   recipe: EditableRecipe & { rawText?: string };
 };
 
-const imageUploadMaxDimension = 960;
-const imageUploadQuality = 0.68;
-const imageUploadMaxBytes = 350_000;
+const ocrCanvasMaxDimension = 1800;
 const imageUploadTimeoutMs = 45_000;
+let ocrWorkerPromise: Promise<OcrWorker> | null = null;
 
 function isImageFile(file: File) {
   return file.type.startsWith("image/");
@@ -58,91 +82,252 @@ function loadImage(file: File) {
   });
 }
 
-async function optimizeImageForUpload(file: File, photoTooLargeMessage: string) {
-  const image = await loadImage(file);
-  const longestSide = Math.max(image.width, image.height);
-  const scale = Math.min(1, imageUploadMaxDimension / longestSide);
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
 
-  if (scale === 1 && file.size <= imageUploadMaxBytes && (file.type === "image/jpeg" || file.type === "image/webp")) {
-    return file;
+function computeOtsuThreshold(data: Uint8ClampedArray) {
+  const histogram = new Array<number>(256).fill(0);
+  for (let index = 0; index < data.length; index += 4) {
+    histogram[data[index]] += 1;
   }
 
-  const canvas = document.createElement("canvas");
-  const context = canvas.getContext("2d");
-  if (!context) {
-    throw new Error("Unable to prepare the image for OCR.");
+  let total = 0;
+  let sum = 0;
+  for (let index = 0; index < histogram.length; index += 1) {
+    total += histogram[index];
+    sum += index * histogram[index];
   }
-  let currentScale = scale;
-  let currentQuality = imageUploadQuality;
-  let blob: Blob | null = null;
 
-  for (let attempt = 0; attempt < 6; attempt += 1) {
-    canvas.width = Math.max(1, Math.round(image.width * currentScale));
-    canvas.height = Math.max(1, Math.round(image.height * currentScale));
-    context.filter = "grayscale(1) contrast(1.18) brightness(1.04)";
-    context.fillStyle = "#ffffff";
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  let sumBackground = 0;
+  let weightBackground = 0;
+  let maxVariance = 0;
+  let threshold = 160;
 
-    blob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob(
-        (result) => {
-          if (!result) {
-            reject(new Error("Unable to prepare the image for OCR."));
-            return;
-          }
+  for (let index = 0; index < histogram.length; index += 1) {
+    weightBackground += histogram[index];
+    if (weightBackground === 0) {
+      continue;
+    }
 
-          resolve(result);
-        },
-        "image/jpeg",
-        currentQuality,
-      );
-    });
-
-    if (blob.size <= imageUploadMaxBytes) {
+    const weightForeground = total - weightBackground;
+    if (weightForeground === 0) {
       break;
     }
 
-    currentScale *= 0.82;
-    currentQuality = Math.max(0.42, currentQuality - 0.08);
+    sumBackground += index * histogram[index];
+    const meanBackground = sumBackground / weightBackground;
+    const meanForeground = (sum - sumBackground) / weightForeground;
+    const variance = weightBackground * weightForeground * (meanBackground - meanForeground) ** 2;
+
+    if (variance > maxVariance) {
+      maxVariance = variance;
+      threshold = index;
+    }
   }
 
-  context.filter = "none";
+  return clamp(threshold, 110, 205);
+}
 
-  if (!blob) {
+function detectInkBounds(imageData: ImageData) {
+  const { width, height, data } = imageData;
+  const rowCounts = new Array<number>(height).fill(0);
+  const columnCounts = new Array<number>(width).fill(0);
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const offset = (y * width + x) * 4;
+      const brightness = (data[offset] + data[offset + 1] + data[offset + 2]) / 3;
+      if (brightness < 172) {
+        rowCounts[y] += 1;
+        columnCounts[x] += 1;
+      }
+    }
+  }
+
+  const rowMin = Math.max(4, Math.round(width * 0.004));
+  const rowMax = Math.round(width * 0.35);
+  const columnMin = Math.max(3, Math.round(height * 0.003));
+  const columnMax = Math.round(height * 0.38);
+  const candidateRows = rowCounts
+    .map((count, index) => ({ count, index }))
+    .filter(({ count }) => count >= rowMin && count <= rowMax)
+    .map(({ index }) => index);
+  const candidateColumns = columnCounts
+    .map((count, index) => ({ count, index }))
+    .filter(({ count }) => count >= columnMin && count <= columnMax)
+    .map(({ index }) => index);
+
+  if (candidateRows.length === 0 || candidateColumns.length === 0) {
+    return {
+      left: 0,
+      top: 0,
+      width,
+      height,
+    };
+  }
+
+  const marginX = Math.round(width * 0.03);
+  const marginY = Math.round(height * 0.035);
+  const top = clamp(candidateRows[0] - marginY, 0, height - 1);
+  const bottom = clamp(candidateRows[candidateRows.length - 1] + marginY, top + 1, height);
+  const left = clamp(candidateColumns[0] - marginX, 0, width - 1);
+  const right = clamp(candidateColumns[candidateColumns.length - 1] + marginX, left + 1, width);
+
+  return {
+    left,
+    top,
+    width: right - left,
+    height: bottom - top,
+  };
+}
+
+async function prepareImageForOcr(file: File) {
+  const image = await loadImage(file);
+  const longestSide = Math.max(image.width, image.height);
+  const sourceScale = Math.min(1, ocrCanvasMaxDimension / longestSide);
+  const sourceCanvas = document.createElement("canvas");
+  sourceCanvas.width = Math.max(1, Math.round(image.width * sourceScale));
+  sourceCanvas.height = Math.max(1, Math.round(image.height * sourceScale));
+  const sourceContext = sourceCanvas.getContext("2d", { willReadFrequently: true });
+
+  if (!sourceContext) {
     throw new Error("Unable to prepare the image for OCR.");
   }
 
-  if (blob.size > imageUploadMaxBytes) {
-    throw new Error(photoTooLargeMessage);
+  sourceContext.fillStyle = "#ffffff";
+  sourceContext.fillRect(0, 0, sourceCanvas.width, sourceCanvas.height);
+  sourceContext.drawImage(image, 0, 0, sourceCanvas.width, sourceCanvas.height);
+
+  const sourceImageData = sourceContext.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
+  const bounds = detectInkBounds(sourceImageData);
+  const cropCanvas = document.createElement("canvas");
+  cropCanvas.width = bounds.width;
+  cropCanvas.height = bounds.height;
+  const cropContext = cropCanvas.getContext("2d", { willReadFrequently: true });
+
+  if (!cropContext) {
+    throw new Error("Unable to prepare the image for OCR.");
   }
 
-  const normalizedName = file.name.replace(/\.[^.]+$/, "") || "recipe-photo";
-  return new File([blob], `${normalizedName}.jpg`, {
-    type: "image/jpeg",
-    lastModified: file.lastModified,
-  });
+  cropContext.fillStyle = "#ffffff";
+  cropContext.fillRect(0, 0, cropCanvas.width, cropCanvas.height);
+  cropContext.drawImage(
+    sourceCanvas,
+    bounds.left,
+    bounds.top,
+    bounds.width,
+    bounds.height,
+    0,
+    0,
+    cropCanvas.width,
+    cropCanvas.height,
+  );
+
+  const grayscaleCanvas = document.createElement("canvas");
+  grayscaleCanvas.width = cropCanvas.width;
+  grayscaleCanvas.height = cropCanvas.height;
+  const grayscaleContext = grayscaleCanvas.getContext("2d", { willReadFrequently: true });
+
+  if (!grayscaleContext) {
+    throw new Error("Unable to prepare the image for OCR.");
+  }
+
+  const processedImage = cropContext.getImageData(0, 0, cropCanvas.width, cropCanvas.height);
+  for (let index = 0; index < processedImage.data.length; index += 4) {
+    const red = processedImage.data[index];
+    const green = processedImage.data[index + 1];
+    const blue = processedImage.data[index + 2];
+    const grayscale = Math.round(red * 0.299 + green * 0.587 + blue * 0.114);
+    const contrasted = clamp(Math.round((grayscale - 128) * 1.35 + 128), 0, 255);
+    processedImage.data[index] = contrasted;
+    processedImage.data[index + 1] = contrasted;
+    processedImage.data[index + 2] = contrasted;
+    processedImage.data[index + 3] = 255;
+  }
+
+  grayscaleContext.putImageData(processedImage, 0, 0);
+
+  const binaryCanvas = document.createElement("canvas");
+  binaryCanvas.width = cropCanvas.width;
+  binaryCanvas.height = cropCanvas.height;
+  const binaryContext = binaryCanvas.getContext("2d", { willReadFrequently: true });
+
+  if (!binaryContext) {
+    throw new Error("Unable to prepare the image for OCR.");
+  }
+
+  const binaryImage = grayscaleContext.getImageData(0, 0, grayscaleCanvas.width, grayscaleCanvas.height);
+  const threshold = computeOtsuThreshold(binaryImage.data);
+  for (let index = 0; index < binaryImage.data.length; index += 4) {
+    const inkPixel = binaryImage.data[index] < threshold ? 0 : 255;
+    binaryImage.data[index] = inkPixel;
+    binaryImage.data[index + 1] = inkPixel;
+    binaryImage.data[index + 2] = inkPixel;
+    binaryImage.data[index + 3] = 255;
+  }
+
+  binaryContext.putImageData(binaryImage, 0, 0);
+
+  return {
+    grayscaleCanvas,
+    binaryCanvas,
+  };
+}
+
+function scoreOcrText(text: string) {
+  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const ingredientLikeLines = lines.filter((line) => /\d/.test(line) && /[a-zA-ZåäöÅÄÖ]/.test(line)).length;
+  const methodLikeLines = lines.filter((line) => /(koka|blanda|vispa|smält|ror|rör|boil|mix|stir|heat)/i.test(line)).length;
+  const noisePenalty = (text.match(/[=%|_]{2,}|[^\w\s.,:()/+-]{2,}/g) ?? []).length * 4;
+
+  return ingredientLikeLines * 12 + methodLikeLines * 8 + lines.length * 2 - noisePenalty;
+}
+
+async function getOcrWorker() {
+  const tesseractModule = (await import("tesseract.js")).default as OcrModule;
+
+  if (!ocrWorkerPromise) {
+    ocrWorkerPromise = tesseractModule.createWorker(["swe", "eng"], tesseractModule.OEM.LSTM_ONLY);
+  }
+
+  const worker = await ocrWorkerPromise;
+  return { worker, tesseractModule };
 }
 
 async function extractPhotoText(file: File, timeoutMessage: string) {
-  const tesseractModule = await import("tesseract.js");
-  const recognize = tesseractModule.default.recognize;
+  const preparedCanvases = await prepareImageForOcr(file);
+  const { worker, tesseractModule } = await getOcrWorker();
 
-  try {
-    const result = await withTimeout(
-      recognize(file, "swe+eng"),
-      imageUploadTimeoutMs,
-      timeoutMessage,
-    );
-    return result.data.text.trim();
-  } catch {
-    const fallbackResult = await withTimeout(
-      recognize(file, "eng"),
-      imageUploadTimeoutMs,
-      timeoutMessage,
-    );
-    return fallbackResult.data.text.trim();
-  }
+  await worker.setParameters({
+    preserve_interword_spaces: "1",
+    tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZÅÄÖabcdefghijklmnopqrstuvwxyzåäö0123456789 .,:%=()/-",
+    tessedit_pageseg_mode: String(tesseractModule.PSM.SINGLE_COLUMN),
+    user_defined_dpi: "300",
+  });
+
+  const primaryResult = await withTimeout(
+    worker.recognize(preparedCanvases.grayscaleCanvas, { rotateAuto: true }),
+    imageUploadTimeoutMs,
+    timeoutMessage,
+  );
+
+  await worker.setParameters({
+    preserve_interword_spaces: "1",
+    tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZÅÄÖabcdefghijklmnopqrstuvwxyzåäö0123456789 .,:%=()/-",
+    tessedit_pageseg_mode: String(tesseractModule.PSM.SPARSE_TEXT),
+    user_defined_dpi: "300",
+  });
+
+  const fallbackResult = await withTimeout(
+    worker.recognize(preparedCanvases.binaryCanvas, { rotateAuto: true }),
+    imageUploadTimeoutMs,
+    timeoutMessage,
+  );
+
+  const primaryText = primaryResult.data.text.trim();
+  const fallbackText = fallbackResult.data.text.trim();
+  return scoreOcrText(primaryText) >= scoreOcrText(fallbackText) ? primaryText : fallbackText;
 }
 
 export function ImportPreviewBuilder({
@@ -175,11 +360,10 @@ export function ImportPreviewBuilder({
         const formData = new FormData();
 
         if (isImageFile(file)) {
-          const uploadFile = await optimizeImageForUpload(file, dictionary.importBuilder.parseTimedOut);
-          const rawText = await extractPhotoText(uploadFile, dictionary.importBuilder.parseTimedOut);
+          const rawText = await extractPhotoText(file, dictionary.importBuilder.parseTimedOut);
           formData.set("rawText", rawText);
-          formData.set("sourceFileName", uploadFile.name);
-          formData.set("mimeType", uploadFile.type);
+          formData.set("sourceFileName", file.name);
+          formData.set("mimeType", "text/plain");
         } else {
           formData.set("file", file);
         }
