@@ -1,6 +1,6 @@
 # Fett & Socker
 
-Production-ready modular recipe web app built with Next.js, React, TypeScript, Tailwind CSS, Prisma, Supabase Postgres, Zod, and Playwright.
+Production-ready modular recipe web app built with Next.js, React, TypeScript, Tailwind CSS, Prisma, Supabase Postgres, Zod, and React PDF.
 
 ## Features
 
@@ -20,7 +20,7 @@ Production-ready modular recipe web app built with Next.js, React, TypeScript, T
 - Tailwind CSS 4
 - Prisma ORM
 - Supabase Postgres
-- Playwright
+- @react-pdf/renderer
 - Zod
 
 ## Environment
@@ -42,13 +42,12 @@ Notes:
 - `DIRECT_URL` should use the direct Postgres connection string for Prisma migrations.
 - `UNSTRUCTURED_API_URL` and `UNSTRUCTURED_API_KEY` are required for PDF and DOCX parsing.
 - Plain text import falls back to local text extraction if Unstructured is not configured.
-- Playwright needs Chromium installed before runtime PDF export.
+- PDF export runs entirely in Node and does not require a browser binary.
 
 ## Local setup
 
 ```bash
 npm install
-npm run playwright:install
 ```
 
 Create a Supabase project, copy the two Postgres connection strings into `.env.local`, then run:
@@ -70,7 +69,7 @@ The active migration history in `prisma/migrations` is now a PostgreSQL baseline
 
 ## Seeded accounts
 
-- Admin: `admin@receptlight.local` / `admin1234`
+- Admin: `admin@admin.se` / `admin1234`
 - User: `chef@receptlight.local` / `demo1234`
 
 ## Important paths
@@ -87,5 +86,5 @@ The active migration history in `prisma/migrations` is now a PostgreSQL baseline
 - `next.config.ts` uses `output: "standalone"` for container deployment.
 - Protected app routes are enforced through `proxy.ts`.
 - Module checks are enforced both in page loaders and API handlers.
-- PDF export runs server-side through Playwright Chromium.
+- PDF export runs server-side through `@react-pdf/renderer`.
 - Use Supabase Postgres for the database and store `DATABASE_URL`, `DIRECT_URL`, `SESSION_SECRET`, and `APP_URL` in your deployment environment.
