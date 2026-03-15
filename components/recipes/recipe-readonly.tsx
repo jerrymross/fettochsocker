@@ -1,5 +1,3 @@
-"use client";
-
 import { formatIngredientAmount } from "@/lib/units";
 import { panelClass } from "@/lib/ui";
 import type { Dictionary, Locale } from "@/lib/i18n";

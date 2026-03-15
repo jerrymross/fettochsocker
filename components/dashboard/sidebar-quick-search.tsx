@@ -71,7 +71,6 @@ export function SidebarQuickSearch({
     setResults([]);
     onNavigate?.();
     router.push(`/recipes/${recipeId}`);
-    router.refresh();
   }
 
   return (

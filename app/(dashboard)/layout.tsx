@@ -3,8 +3,6 @@ import { getLocale } from "@/lib/server/locale";
 import { getEnabledModules } from "@/lib/server/modules";
 import { requireSession } from "@/lib/server/session";
 
-export const dynamic = "force-dynamic";
-
 export default async function DashboardLayout({
   children,
 }: Readonly<{

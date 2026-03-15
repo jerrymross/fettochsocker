@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { UploadCloud } from "lucide-react";
+import { Camera, FileText, UploadCloud } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
 import { RecipeEditor } from "@/components/recipes/recipe-editor";
 import type { RecipeCategoryOption } from "@/lib/recipe-categories";
 import type { EditableRecipe } from "@/lib/types";
-import { panelClass, primaryButtonClass } from "@/lib/ui";
+import { panelClass, primaryButtonClass, secondaryButtonClass } from "@/lib/ui";
 
 type ImportResponse = {
   importId: string;
@@ -47,16 +47,18 @@ export function ImportPreviewBuilder({
 
       if (!response.ok) {
         setError(payload.error ?? dictionary.importBuilder.parseFailed);
+        event.target.value = "";
         return;
       }
 
       setPreview(payload);
+      event.target.value = "";
     });
   }
 
   return (
     <div className="space-y-6">
-      <label className={`${panelClass} flex cursor-pointer flex-col items-center justify-center gap-4 border-dashed text-center`}>
+      <div className={`${panelClass} flex flex-col items-center justify-center gap-4 border-dashed text-center`}>
         <div className="flex size-16 items-center justify-center rounded-full bg-amber-100 text-amber-700">
           <UploadCloud className="size-8" />
         </div>
@@ -64,14 +66,31 @@ export function ImportPreviewBuilder({
           <p className="text-xl font-semibold text-slate-950">{dictionary.importBuilder.title}</p>
           <p className="mt-2 text-sm text-slate-700">{dictionary.importBuilder.description}</p>
         </div>
-        <span className={primaryButtonClass}>{isPending ? dictionary.importBuilder.parsing : dictionary.importBuilder.chooseFile}</span>
-        <input
-          accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
-          className="hidden"
-          onChange={handleUpload}
-          type="file"
-        />
-      </label>
+        <div className="flex w-full flex-col justify-center gap-3 sm:flex-row">
+          <label className={`${primaryButtonClass} cursor-pointer gap-2`}>
+            <FileText className="size-4" />
+            <span>{isPending ? dictionary.importBuilder.parsing : dictionary.importBuilder.chooseDocument}</span>
+            <input
+              accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+              className="hidden"
+              onChange={handleUpload}
+              type="file"
+            />
+          </label>
+          <label className={`${secondaryButtonClass} cursor-pointer gap-2`}>
+            <Camera className="size-4" />
+            <span>{isPending ? dictionary.importBuilder.parsing : dictionary.importBuilder.choosePhoto}</span>
+            <input
+              accept="image/jpeg,image/png,image/webp"
+              capture="environment"
+              className="hidden"
+              onChange={handleUpload}
+              type="file"
+            />
+          </label>
+        </div>
+        <p className="text-xs text-slate-500">{dictionary.importBuilder.supportedFormats}</p>
+      </div>
 
       {error ? <p className="text-sm text-rose-600">{error}</p> : null}
 

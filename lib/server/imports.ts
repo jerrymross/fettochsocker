@@ -17,7 +17,10 @@ type UnstructuredElement = {
   text?: string;
 };
 
-type ImportFileKind = "txt" | "docx" | "pdf" | "unknown";
+type ImportFileKind = "txt" | "docx" | "pdf" | "image" | "unknown";
+
+const supportedImageMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+const supportedImageExtensions = [".jpg", ".jpeg", ".png", ".webp"];
 
 const ingredientHeadings = new Set(["ingredient", "ingredients", "ingrediens", "ingredienser"]);
 const methodHeadings = new Set([
@@ -40,6 +43,14 @@ function normalizeLine(line: string) {
     .replace(/\u00a0/g, " ")
     .replace(/[\u2010-\u2015]/g, "-")
     .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeExtractedText(rawText: string) {
+  return rawText
+    .replace(/\r/g, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
@@ -352,6 +363,13 @@ function detectFileKind(file: File): ImportFileKind {
     return "pdf";
   }
 
+  if (
+    supportedImageMimeTypes.has(mimeType) ||
+    supportedImageExtensions.some((extension) => fileName.endsWith(extension))
+  ) {
+    return "image";
+  }
+
   return "unknown";
 }
 
@@ -474,6 +492,21 @@ async function parseLocally(file: File) {
     return rawText;
   }
 
+  if (fileKind === "image") {
+    const tesseractModule = await import("tesseract.js");
+    const recognize = tesseractModule.default.recognize;
+    const buffer = Buffer.from(await file.arrayBuffer());
+
+    try {
+      const result = await recognize(buffer, "swe+eng");
+      return result.data.text.trim();
+    } catch (error) {
+      console.warn("Image OCR with swe+eng failed, retrying with eng.", error);
+      const fallbackResult = await recognize(buffer, "eng");
+      return fallbackResult.data.text.trim();
+    }
+  }
+
   throw new Error("Unsupported file type.");
 }
 
@@ -483,15 +516,19 @@ async function parseFileToText(file: File) {
 
   if (apiUrl && apiKey) {
     try {
-      return await parseWithUnstructured(file);
+      return normalizeExtractedText(await parseWithUnstructured(file));
     } catch (error) {
       console.warn("Unstructured parsing failed, falling back to local parser.", error);
     }
   }
 
-  const rawText = await parseLocally(file);
+  const rawText = normalizeExtractedText(await parseLocally(file));
 
   if (!rawText.trim()) {
+    if (detectFileKind(file) === "image") {
+      throw new Error("No readable text was found in the photo. Try a sharper image with better contrast.");
+    }
+
     if (detectFileKind(file) === "pdf") {
       throw new Error("The PDF could not be parsed locally. If it is scanned, configure Unstructured OCR support.");
     }
