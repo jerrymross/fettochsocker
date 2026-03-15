@@ -683,6 +683,27 @@ function buildReadableSourceText(recipe: Omit<ParsedRecipePreview, "rawText">) {
   return sections.join("\n");
 }
 
+function isImageImportSource(input: { sourceFileName: string; mimeType?: string }) {
+  const fileName = input.sourceFileName.toLowerCase();
+  const mimeType = (input.mimeType || "").toLowerCase();
+  return mimeType.startsWith("image/") || supportedImageExtensions.some((extension) => fileName.endsWith(extension));
+}
+
+function isUnreadableImageRecipe(recipe: Omit<ParsedRecipePreview, "rawText">) {
+  const titleLetters = (recipe.title.match(/[A-Za-z\u00c5\u00c4\u00d6\u00e5\u00e4\u00f6]/g) ?? []).length;
+  const suspiciousTitle = titleLetters < 5 || /^[^A-Za-z\u00c5\u00c4\u00d6\u00e5\u00e4\u00f6-]*-/.test(recipe.title);
+  const genericIngredient =
+    recipe.ingredients.length === 1 &&
+    recipe.ingredients[0].quantity <= 5 &&
+    /^(ingredient|ganache|ka|fae)$/i.test(recipe.ingredients[0].name);
+  const fragmentedStepTokens = recipe.steps.reduce(
+    (count, step) => count + ((step.instruction.match(/\b[A-Za-z\u00c5\u00c4\u00d6\u00e5\u00e4\u00f6]{1,2}\b/g) ?? []).length),
+    0,
+  );
+
+  return (suspiciousTitle && genericIngredient) || (recipe.ingredients.length <= 1 && fragmentedStepTokens >= 5);
+}
+
 function parseIngredientLines(lines: string[]) {
   const ingredients: ParsedRecipePreview["ingredients"] = [];
   let pendingName: string | null = null;
@@ -1097,6 +1118,10 @@ export async function createImportPreviewFromText(
   }
 
   const mapped = mapRecipeFromText(rawText);
+
+  if (isImageImportSource(input) && isUnreadableImageRecipe(mapped)) {
+    throw new Error("Fotot gick inte att tolka säkert. Beskär närmare receptet och ta en ny bild rakt ovanifrån.");
+  }
 
   const importJob = await prisma.importJob.create({
     data: {

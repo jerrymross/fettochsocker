@@ -312,6 +312,16 @@ function scoreStructuredOcrText(text: string) {
   return scoreOcrText(text) + quantityLines * 14 + knownTerms * 20 - shortLines * 5 - fragmentedTokens * 2;
 }
 
+function isUnreliableOcrText(text: string) {
+  const normalized = text.toLowerCase();
+  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const quantityLines = lines.filter((line) => /^\s*\d{1,4}\s*(g|kg|ml|cl|dl|l)?\s*[A-Za-zÃƒÂ¥ÃƒÂ¤ÃƒÂ¶Ãƒâ€¦Ãƒâ€žÃƒâ€“]/i.test(line)).length;
+  const knownTerms = recipeOcrHints.filter((hint) => normalized.includes(hint)).length;
+  const fragmentedTokens = (text.match(/\b[A-Za-zÃƒÂ¥ÃƒÂ¤ÃƒÂ¶Ãƒâ€¦Ãƒâ€žÃƒâ€“]{1,2}\b/g) ?? []).length;
+
+  return scoreStructuredOcrText(text) < 24 || (quantityLines === 0 && knownTerms < 2) || fragmentedTokens >= 8;
+}
+
 async function getOcrWorker() {
   const tesseractModule = (await import("tesseract.js")).default as OcrModule;
 
@@ -369,7 +379,13 @@ async function extractPhotoText(file: File, timeoutMessage: string) {
   const primaryText = primaryResult.data.text.trim();
   const fallbackText = fallbackResult.data.text.trim();
   const binaryText = binaryResult.data.text.trim();
-  return [primaryText, fallbackText, binaryText].sort((left, right) => scoreStructuredOcrText(right) - scoreStructuredOcrText(left))[0] ?? "";
+  const bestText = [primaryText, fallbackText, binaryText].sort((left, right) => scoreStructuredOcrText(right) - scoreStructuredOcrText(left))[0] ?? "";
+
+  if (isUnreliableOcrText(bestText)) {
+    throw new Error("Fotot gick inte att läsa tillräckligt tydligt. Beskär närmare receptet och ta bilden rakt ovanifrån.");
+  }
+
+  return bestText;
 }
 
 export function ImportPreviewBuilder({
@@ -405,7 +421,7 @@ export function ImportPreviewBuilder({
           const rawText = await extractPhotoText(file, dictionary.importBuilder.parseTimedOut);
           formData.set("rawText", rawText);
           formData.set("sourceFileName", file.name);
-          formData.set("mimeType", "text/plain");
+          formData.set("mimeType", file.type || "image/jpeg");
         } else {
           formData.set("file", file);
         }
