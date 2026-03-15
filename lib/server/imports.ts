@@ -21,6 +21,7 @@ type ImportFileKind = "txt" | "docx" | "pdf" | "image" | "unknown";
 
 const supportedImageMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 const supportedImageExtensions = [".jpg", ".jpeg", ".png", ".webp"];
+const imageOcrTimeoutMs = 45_000;
 
 const ingredientHeadings = new Set(["ingredient", "ingredients", "ingrediens", "ingredienser"]);
 const methodHeadings = new Set([
@@ -52,6 +53,23 @@ function normalizeExtractedText(rawText: string) {
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string) {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
 }
 
 function canonicalizeForMatch(line: string) {
@@ -498,11 +516,19 @@ async function parseLocally(file: File) {
     const buffer = Buffer.from(await file.arrayBuffer());
 
     try {
-      const result = await recognize(buffer, "swe+eng");
+      const result = await withTimeout(
+        recognize(buffer, "swe+eng"),
+        imageOcrTimeoutMs,
+        "Photo import timed out. Try cropping the photo tighter around the recipe.",
+      );
       return result.data.text.trim();
     } catch (error) {
       console.warn("Image OCR with swe+eng failed, retrying with eng.", error);
-      const fallbackResult = await recognize(buffer, "eng");
+      const fallbackResult = await withTimeout(
+        recognize(buffer, "eng"),
+        imageOcrTimeoutMs,
+        "Photo import timed out. Try cropping the photo tighter around the recipe.",
+      );
       return fallbackResult.data.text.trim();
     }
   }
