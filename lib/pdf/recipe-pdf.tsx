@@ -23,6 +23,11 @@ type ExportRecipeRecord = Prisma.RecipeGetPayload<{
   };
 }>;
 
+const PORTRAIT_A4_SIZE = {
+  width: 595.28,
+  height: 841.89,
+};
+
 const styles = StyleSheet.create({
   page: {
     paddingTop: 36,
@@ -359,7 +364,7 @@ function RecipeCollectionDocument({
 }) {
   return (
     <Document title={title} author="Fett & Socker" producer="Fett & Socker">
-      <Page size="A4" style={[styles.page, styles.coverPage]}>
+      <Page size={PORTRAIT_A4_SIZE} style={[styles.page, styles.coverPage]}>
         <View>
           <Text style={styles.eyebrow}>Fett & Socker export</Text>
           <Text style={styles.coverTitle}>{title}</Text>
@@ -378,7 +383,7 @@ function RecipeCollectionDocument({
         </View>
       </Page>
 
-      <Page size="A4" style={styles.page}>
+      <Page size={PORTRAIT_A4_SIZE} style={styles.page}>
         <View style={styles.registerHeader}>
           <View>
             <Text style={styles.eyebrow}>Register</Text>
@@ -411,7 +416,7 @@ function RecipeCollectionDocument({
         const density = getRecipePageDensity(recipe);
 
         return (
-          <Page key={recipe.id} size="A4" style={styles.page} wrap={false}>
+          <Page key={recipe.id} size={PORTRAIT_A4_SIZE} style={styles.page} wrap={false}>
             <View style={styles.recipeTopbar}>
               <Text style={styles.eyebrow}>Recipe {index + 1}</Text>
               <Text style={styles.pagePill}>Page {index + 3}</Text>
@@ -483,7 +488,7 @@ function PrintableRecipePdfDocument({
 
   return (
     <Document title={document.title} author="Fett & Socker" producer="Fett & Socker">
-      <Page size="A4" style={styles.page}>
+      <Page size={PORTRAIT_A4_SIZE} style={styles.page}>
         <View>
           <Text style={styles.eyebrow}>Fett & Socker</Text>
           <Text style={styles.printableTitle}>{document.title}</Text>
