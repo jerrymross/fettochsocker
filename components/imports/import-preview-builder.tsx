@@ -13,8 +13,9 @@ type ImportResponse = {
   recipe: EditableRecipe & { rawText?: string };
 };
 
-const imageUploadMaxDimension = 1800;
-const imageUploadQuality = 0.82;
+const imageUploadMaxDimension = 1280;
+const imageUploadQuality = 0.76;
+const imageUploadMaxBytes = 900_000;
 const imageUploadTimeoutMs = 45_000;
 
 function isImageFile(file: File) {
@@ -45,37 +46,52 @@ async function optimizeImageForUpload(file: File) {
   const longestSide = Math.max(image.width, image.height);
   const scale = Math.min(1, imageUploadMaxDimension / longestSide);
 
-  if (scale === 1 && file.size <= 2_000_000 && (file.type === "image/jpeg" || file.type === "image/webp")) {
+  if (scale === 1 && file.size <= imageUploadMaxBytes && (file.type === "image/jpeg" || file.type === "image/webp")) {
     return file;
   }
 
   const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(image.width * scale));
-  canvas.height = Math.max(1, Math.round(image.height * scale));
-
   const context = canvas.getContext("2d");
   if (!context) {
     throw new Error("Unable to prepare the image for OCR.");
   }
+  let currentScale = scale;
+  let currentQuality = imageUploadQuality;
+  let blob: Blob | null = null;
 
-  context.fillStyle = "#ffffff";
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    canvas.width = Math.max(1, Math.round(image.width * currentScale));
+    canvas.height = Math.max(1, Math.round(image.height * currentScale));
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
 
-  const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (result) => {
-        if (!result) {
-          reject(new Error("Unable to prepare the image for OCR."));
-          return;
-        }
+    blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(
+        (result) => {
+          if (!result) {
+            reject(new Error("Unable to prepare the image for OCR."));
+            return;
+          }
 
-        resolve(result);
-      },
-      "image/jpeg",
-      imageUploadQuality,
-    );
-  });
+          resolve(result);
+        },
+        "image/jpeg",
+        currentQuality,
+      );
+    });
+
+    if (blob.size <= imageUploadMaxBytes) {
+      break;
+    }
+
+    currentScale *= 0.86;
+    currentQuality = Math.max(0.5, currentQuality - 0.08);
+  }
+
+  if (!blob) {
+    throw new Error("Unable to prepare the image for OCR.");
+  }
 
   const normalizedName = file.name.replace(/\.[^.]+$/, "") || "recipe-photo";
   return new File([blob], `${normalizedName}.jpg`, {
