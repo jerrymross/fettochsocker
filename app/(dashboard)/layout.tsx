@@ -10,12 +10,10 @@ export default async function DashboardLayout({
 }>) {
   const [session, locale] = await Promise.all([requireSession(), getLocale()]);
   const modules = await getEnabledModules(locale);
-  const hasRecipesModule = modules.some((module) => module.key === "RECIPES");
 
   return (
     <div className="min-h-screen">
       <AppSidebar
-        hasRecipesModule={hasRecipesModule}
         isAdmin={session.role === "ADMIN"}
         modules={modules}
         userName={session.name}
