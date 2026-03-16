@@ -28,11 +28,35 @@ type AdminPackageItem = {
   description: string;
   createdByName: string;
   recipeIds: string[];
+  recipeTitles: string[];
   userIds: string[];
+  userNames: string[];
 };
 
 const compactSelectionCardClass =
   "flex items-start gap-2 rounded-xl border border-slate-200 bg-white px-2.5 py-2";
+
+function summarizeNames(items: string[]) {
+  if (items.length === 0) {
+    return "-";
+  }
+
+  return items.join(", ");
+}
+
+function buildRecipeMeta(recipe: AdminRecipeItem) {
+  const parts = [recipe.authorName];
+
+  if (recipe.categories.length > 0) {
+    parts.push(recipe.categories.join(", "));
+  }
+
+  if (recipe.packageNames.length > 0) {
+    parts.push(recipe.packageNames.join(", "));
+  }
+
+  return parts.join(" | ");
+}
 
 function PackageEditorCard({
   packageItem,
@@ -56,6 +80,12 @@ function PackageEditorCard({
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
+  const selectedRecipeNames = recipes
+    .filter((recipe) => selectedRecipeIds.includes(recipe.id))
+    .map((recipe) => recipe.title);
+  const selectedUserNames = users
+    .filter((user) => selectedUserIds.includes(user.id))
+    .map((user) => user.name);
 
   function toggleSelection(current: string[], value: string) {
     return current.includes(value) ? current.filter((item) => item !== value) : [...current, value];
@@ -111,13 +141,14 @@ function PackageEditorCard({
   return (
     <div className="rounded-[24px] border border-slate-200 bg-slate-50/70 p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0 flex-1">
           <p className="text-lg font-semibold text-slate-950">{packageItem.name}</p>
           <p className="mt-1 text-sm text-slate-500">
             {dictionary.adminPage.createdBy}: {packageItem.createdByName}
           </p>
           <p className="mt-2 text-xs text-slate-500">
-            {selectedRecipeIds.length} {dictionary.adminPage.includedRecipes.toLowerCase()} • {selectedUserIds.length} {dictionary.adminPage.assignedUsers.toLowerCase()}
+            {selectedRecipeIds.length} {dictionary.adminPage.includedRecipes.toLowerCase()} | {selectedUserIds.length}{" "}
+            {dictionary.adminPage.assignedUsers.toLowerCase()}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -136,51 +167,70 @@ function PackageEditorCard({
       </div>
 
       {isExpanded ? (
-        <div className="mt-4 grid gap-4 lg:grid-cols-[0.8fr_1fr_1fr]">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">{dictionary.adminPage.packageName}</label>
-            <input className={inputClass} onChange={(event) => setName(event.target.value)} value={name} />
-            <label className="text-sm font-medium text-slate-700">{dictionary.adminPage.packageDescriptionField}</label>
-            <textarea className={textareaClass} onChange={(event) => setDescription(event.target.value)} value={description} />
-          </div>
-
-          <div className="space-y-3">
-            <p className="text-sm font-medium text-slate-700">{dictionary.adminPage.includedRecipes}</p>
-            <div className="grid max-h-[20rem] gap-1.5 overflow-y-auto pr-1">
-              {recipes.map((recipe) => (
-                <label key={recipe.id} className={compactSelectionCardClass}>
-                  <input
-                    checked={selectedRecipeIds.includes(recipe.id)}
-                    className="mt-1"
-                    onChange={() => setSelectedRecipeIds((current) => toggleSelection(current, recipe.id))}
-                    type="checkbox"
-                  />
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-medium text-slate-950">{recipe.title}</span>
-                    <span className="block text-xs text-slate-500">{recipe.isPublic ? dictionary.adminPage.publicRecipe : dictionary.adminPage.adminOnlyRecipe}</span>
-                  </span>
-                </label>
-              ))}
+        <div className="mt-4 space-y-4">
+          <div className="grid gap-3 lg:grid-cols-2">
+            <div className="rounded-[18px] border border-slate-200 bg-white px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+                {dictionary.adminPage.includedRecipes}
+              </p>
+              <p className="mt-2 text-sm text-slate-700">{summarizeNames(selectedRecipeNames)}</p>
+            </div>
+            <div className="rounded-[18px] border border-slate-200 bg-white px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+                {dictionary.adminPage.assignedUsers}
+              </p>
+              <p className="mt-2 text-sm text-slate-700">{summarizeNames(selectedUserNames)}</p>
             </div>
           </div>
 
-          <div className="space-y-3">
-            <p className="text-sm font-medium text-slate-700">{dictionary.adminPage.assignedUsers}</p>
-            <div className="grid max-h-[20rem] gap-1.5 overflow-y-auto pr-1">
-              {users.map((user) => (
-                <label key={user.id} className={compactSelectionCardClass}>
-                  <input
-                    checked={selectedUserIds.includes(user.id)}
-                    className="mt-1"
-                    onChange={() => setSelectedUserIds((current) => toggleSelection(current, user.id))}
-                    type="checkbox"
-                  />
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-medium text-slate-950">{user.name}</span>
-                    <span className="block truncate text-xs text-slate-500">{user.email}</span>
-                  </span>
-                </label>
-              ))}
+          <div className="grid gap-4 lg:grid-cols-[0.8fr_1fr_1fr]">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">{dictionary.adminPage.packageName}</label>
+              <input className={inputClass} onChange={(event) => setName(event.target.value)} value={name} />
+              <label className="text-sm font-medium text-slate-700">{dictionary.adminPage.packageDescriptionField}</label>
+              <textarea className={textareaClass} onChange={(event) => setDescription(event.target.value)} value={description} />
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-slate-700">{dictionary.adminPage.includedRecipes}</p>
+              <div className="grid max-h-[20rem] gap-1.5 overflow-y-auto pr-1">
+                {recipes.map((recipe) => (
+                  <label key={recipe.id} className={compactSelectionCardClass}>
+                    <input
+                      checked={selectedRecipeIds.includes(recipe.id)}
+                      className="mt-1"
+                      onChange={() => setSelectedRecipeIds((current) => toggleSelection(current, recipe.id))}
+                      type="checkbox"
+                    />
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium text-slate-950">{recipe.title}</span>
+                      <span className="block text-xs text-slate-500">
+                        {recipe.isPublic ? dictionary.adminPage.publicRecipe : dictionary.adminPage.adminOnlyRecipe}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-slate-700">{dictionary.adminPage.assignedUsers}</p>
+              <div className="grid max-h-[20rem] gap-1.5 overflow-y-auto pr-1">
+                {users.map((user) => (
+                  <label key={user.id} className={compactSelectionCardClass}>
+                    <input
+                      checked={selectedUserIds.includes(user.id)}
+                      className="mt-1"
+                      onChange={() => setSelectedUserIds((current) => toggleSelection(current, user.id))}
+                      type="checkbox"
+                    />
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium text-slate-950">{user.name}</span>
+                      <span className="block truncate text-xs text-slate-500">{user.email}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -381,9 +431,7 @@ export function AdminCatalogManager({
         return;
       }
 
-      setUsersState((current) =>
-        current.map((user) => (user.id === userId ? { ...user, role } : user)),
-      );
+      setUsersState((current) => current.map((user) => (user.id === userId ? { ...user, role } : user)));
       setUserMessage(dictionary.adminPage.roleUpdated);
       setUpdatingUserId(null);
       router.refresh();
@@ -398,29 +446,20 @@ export function AdminCatalogManager({
           <p className="mt-2 text-sm text-slate-700">{dictionary.adminPage.recipeAccessDescription}</p>
         </div>
 
-        <div className="space-y-3">
+        <div className="max-h-[34rem] overflow-y-auto rounded-[22px] border border-slate-200 bg-slate-50/60">
           {recipesState.map((recipe) => (
-            <div key={recipe.id} className="flex flex-wrap items-center justify-between gap-4 rounded-[22px] border border-slate-200 bg-slate-50/60 px-4 py-4">
-              <div className="min-w-0">
-                <p className="font-semibold text-slate-950">{recipe.title}</p>
-                <p className="mt-1 text-sm text-slate-500">{recipe.authorName}</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {recipe.categories.map((category) => (
-                    <span key={category} className="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-700">
-                      {category}
-                    </span>
-                  ))}
-                  {recipe.packageNames.map((packageName) => (
-                    <span key={packageName} className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-900">
-                      {packageName}
-                    </span>
-                  ))}
-                </div>
+            <div
+              key={recipe.id}
+              className="flex flex-wrap items-center gap-3 border-b border-slate-200 px-4 py-3 last:border-b-0"
+            >
+              <div className="min-w-0 flex flex-1 items-center gap-3">
+                <p className="truncate text-sm font-semibold text-slate-950">{recipe.title}</p>
+                <p className="min-w-0 flex-1 truncate text-xs text-slate-500">{buildRecipeMeta(recipe)}</p>
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex shrink-0 flex-wrap gap-2">
                 <button
-                  className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
+                  className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
                     recipe.isPublic
                       ? "border-slate-950 bg-slate-950 text-white"
                       : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
@@ -431,7 +470,7 @@ export function AdminCatalogManager({
                   {dictionary.adminPage.publicRecipe}
                 </button>
                 <button
-                  className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
+                  className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
                     !recipe.isPublic
                       ? "border-slate-950 bg-slate-950 text-white"
                       : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
@@ -462,7 +501,10 @@ export function AdminCatalogManager({
             const isUpdating = updatingUserId === user.id;
 
             return (
-              <div key={user.id} className="flex flex-wrap items-center justify-between gap-4 rounded-[22px] border border-slate-200 bg-slate-50/60 px-4 py-4">
+              <div
+                key={user.id}
+                className="flex flex-wrap items-center justify-between gap-4 rounded-[22px] border border-slate-200 bg-slate-50/60 px-4 py-4"
+              >
                 <div className="min-w-0">
                   <p className="font-semibold text-slate-950">{user.name}</p>
                   <p className="mt-1 text-sm text-slate-500">{user.email}</p>
@@ -521,7 +563,8 @@ export function AdminCatalogManager({
         <div className="rounded-[22px] border border-slate-200 bg-slate-50/60 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="text-sm text-slate-600">
-              {selectedRecipeIds.length} {dictionary.adminPage.includedRecipes.toLowerCase()} • {selectedUserIds.length} {dictionary.adminPage.assignedUsers.toLowerCase()}
+              {selectedRecipeIds.length} {dictionary.adminPage.includedRecipes.toLowerCase()} | {selectedUserIds.length}{" "}
+              {dictionary.adminPage.assignedUsers.toLowerCase()}
             </div>
             <button className={secondaryButtonClass} onClick={() => setIsCreateEditorExpanded((current) => !current)} type="button">
               {isCreateEditorExpanded ? <ChevronUp className="mr-2 size-4" /> : <ChevronDown className="mr-2 size-4" />}
@@ -554,7 +597,9 @@ export function AdminCatalogManager({
                       />
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-medium text-slate-950">{recipe.title}</span>
-                        <span className="block text-xs text-slate-500">{recipe.isPublic ? dictionary.adminPage.publicRecipe : dictionary.adminPage.adminOnlyRecipe}</span>
+                        <span className="block text-xs text-slate-500">
+                          {recipe.isPublic ? dictionary.adminPage.publicRecipe : dictionary.adminPage.adminOnlyRecipe}
+                        </span>
                       </span>
                     </label>
                   ))}

@@ -39,7 +39,9 @@ export default async function AdminPage() {
           description: packageItem.description ?? "",
           createdByName: packageItem.createdBy.name,
           recipeIds: packageItem.recipeLinks.map((item) => item.recipeId),
+          recipeTitles: packageItem.recipeLinks.map((item) => item.recipe.title),
           userIds: packageItem.userLinks.map((item) => item.userId),
+          userNames: packageItem.userLinks.map((item) => item.user.name),
         }))}
         recipes={recipes.map((recipe) => ({
           id: recipe.id,
