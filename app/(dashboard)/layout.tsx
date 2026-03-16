@@ -8,8 +8,7 @@ export default async function DashboardLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const session = await requireSession();
-  const locale = await getLocale();
+  const [session, locale] = await Promise.all([requireSession(), getLocale()]);
   const modules = await getEnabledModules(locale);
   const hasRecipesModule = modules.some((module) => module.key === "RECIPES");
 
