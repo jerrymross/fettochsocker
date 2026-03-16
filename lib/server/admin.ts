@@ -20,24 +20,24 @@ export async function listAdminUsers() {
 export async function listAdminRecipeCatalog() {
   return prisma.recipe.findMany({
     orderBy: { title: "asc" },
-    include: {
+    select: {
+      id: true,
+      title: true,
+      isPublic: true,
       author: {
         select: {
-          id: true,
           name: true,
-          email: true,
         },
       },
       categories: {
-        include: {
+        select: {
           category: true,
         },
       },
       packageLinks: {
-        include: {
+        select: {
           package: {
             select: {
-              id: true,
               name: true,
             },
           },
@@ -50,33 +50,33 @@ export async function listAdminRecipeCatalog() {
 export async function listRecipePackages() {
   return prisma.recipePackage.findMany({
     orderBy: { name: "asc" },
-    include: {
+    select: {
+      id: true,
+      name: true,
+      description: true,
       recipeLinks: {
-        include: {
+        select: {
+          recipeId: true,
           recipe: {
             select: {
-              id: true,
               title: true,
-              isPublic: true,
             },
           },
         },
       },
       userLinks: {
-        include: {
+        select: {
+          userId: true,
           user: {
             select: {
-              id: true,
               name: true,
               email: true,
-              role: true,
             },
           },
         },
       },
       createdBy: {
         select: {
-          id: true,
           name: true,
         },
       },

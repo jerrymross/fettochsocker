@@ -1,6 +1,6 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/components/language-provider";
@@ -55,6 +55,7 @@ function PackageEditorCard({
   const [selectedUserIds, setSelectedUserIds] = useState(packageItem.userIds);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   function toggleSelection(current: string[], value: string) {
     return current.includes(value) ? current.filter((item) => item !== value) : [...current, value];
@@ -115,8 +116,15 @@ function PackageEditorCard({
           <p className="mt-1 text-sm text-slate-500">
             {dictionary.adminPage.createdBy}: {packageItem.createdByName}
           </p>
+          <p className="mt-2 text-xs text-slate-500">
+            {selectedRecipeIds.length} {dictionary.adminPage.includedRecipes.toLowerCase()} • {selectedUserIds.length} {dictionary.adminPage.assignedUsers.toLowerCase()}
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <button className={secondaryButtonClass} onClick={() => setIsExpanded((current) => !current)} type="button">
+            {isExpanded ? <ChevronUp className="mr-2 size-4" /> : <ChevronDown className="mr-2 size-4" />}
+            {isExpanded ? dictionary.adminPage.hidePackageEditor : dictionary.adminPage.editPackage}
+          </button>
           <button className={secondaryButtonClass} disabled={isDeleting || isPending} onClick={handleDelete} type="button">
             <Trash2 className="mr-2 size-4" />
             {isDeleting ? dictionary.adminPage.deletingPackage : dictionary.adminPage.deletePackage}
@@ -127,54 +135,56 @@ function PackageEditorCard({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-[0.8fr_1fr_1fr]">
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-700">{dictionary.adminPage.packageName}</label>
-          <input className={inputClass} onChange={(event) => setName(event.target.value)} value={name} />
-          <label className="text-sm font-medium text-slate-700">{dictionary.adminPage.packageDescriptionField}</label>
-          <textarea className={textareaClass} onChange={(event) => setDescription(event.target.value)} value={description} />
-        </div>
+      {isExpanded ? (
+        <div className="mt-4 grid gap-4 lg:grid-cols-[0.8fr_1fr_1fr]">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-700">{dictionary.adminPage.packageName}</label>
+            <input className={inputClass} onChange={(event) => setName(event.target.value)} value={name} />
+            <label className="text-sm font-medium text-slate-700">{dictionary.adminPage.packageDescriptionField}</label>
+            <textarea className={textareaClass} onChange={(event) => setDescription(event.target.value)} value={description} />
+          </div>
 
-        <div className="space-y-3">
-          <p className="text-sm font-medium text-slate-700">{dictionary.adminPage.includedRecipes}</p>
-          <div className="grid max-h-[20rem] gap-1.5 overflow-y-auto pr-1">
-            {recipes.map((recipe) => (
-              <label key={recipe.id} className={compactSelectionCardClass}>
-                <input
-                  checked={selectedRecipeIds.includes(recipe.id)}
-                  className="mt-1"
-                  onChange={() => setSelectedRecipeIds((current) => toggleSelection(current, recipe.id))}
-                  type="checkbox"
-                />
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium text-slate-950">{recipe.title}</span>
-                  <span className="block text-xs text-slate-500">{recipe.isPublic ? dictionary.adminPage.publicRecipe : dictionary.adminPage.adminOnlyRecipe}</span>
-                </span>
-              </label>
-            ))}
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-slate-700">{dictionary.adminPage.includedRecipes}</p>
+            <div className="grid max-h-[20rem] gap-1.5 overflow-y-auto pr-1">
+              {recipes.map((recipe) => (
+                <label key={recipe.id} className={compactSelectionCardClass}>
+                  <input
+                    checked={selectedRecipeIds.includes(recipe.id)}
+                    className="mt-1"
+                    onChange={() => setSelectedRecipeIds((current) => toggleSelection(current, recipe.id))}
+                    type="checkbox"
+                  />
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium text-slate-950">{recipe.title}</span>
+                    <span className="block text-xs text-slate-500">{recipe.isPublic ? dictionary.adminPage.publicRecipe : dictionary.adminPage.adminOnlyRecipe}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-slate-700">{dictionary.adminPage.assignedUsers}</p>
+            <div className="grid max-h-[20rem] gap-1.5 overflow-y-auto pr-1">
+              {users.map((user) => (
+                <label key={user.id} className={compactSelectionCardClass}>
+                  <input
+                    checked={selectedUserIds.includes(user.id)}
+                    className="mt-1"
+                    onChange={() => setSelectedUserIds((current) => toggleSelection(current, user.id))}
+                    type="checkbox"
+                  />
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium text-slate-950">{user.name}</span>
+                    <span className="block truncate text-xs text-slate-500">{user.email}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
           </div>
         </div>
-
-        <div className="space-y-3">
-          <p className="text-sm font-medium text-slate-700">{dictionary.adminPage.assignedUsers}</p>
-          <div className="grid max-h-[20rem] gap-1.5 overflow-y-auto pr-1">
-            {users.map((user) => (
-              <label key={user.id} className={compactSelectionCardClass}>
-                <input
-                  checked={selectedUserIds.includes(user.id)}
-                  className="mt-1"
-                  onChange={() => setSelectedUserIds((current) => toggleSelection(current, user.id))}
-                  type="checkbox"
-                />
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium text-slate-950">{user.name}</span>
-                  <span className="block truncate text-xs text-slate-500">{user.email}</span>
-                </span>
-              </label>
-            ))}
-          </div>
-        </div>
-      </div>
+      ) : null}
 
       {message ? <p className="mt-4 text-sm text-emerald-700">{message}</p> : null}
       {error ? <p className="mt-4 text-sm text-rose-600">{error}</p> : null}
@@ -211,6 +221,7 @@ export function AdminCatalogManager({
   const [description, setDescription] = useState("");
   const [selectedRecipeIds, setSelectedRecipeIds] = useState<string[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [isCreateEditorExpanded, setIsCreateEditorExpanded] = useState(false);
 
   useEffect(() => {
     setRecipesState(recipes);
@@ -507,56 +518,70 @@ export function AdminCatalogManager({
           <p className="mt-2 text-sm text-slate-700">{dictionary.adminPage.packageDescription}</p>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[0.8fr_1fr_1fr]">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">{dictionary.adminPage.packageName}</label>
-            <input className={inputClass} onChange={(event) => setName(event.target.value)} value={name} />
-            <label className="text-sm font-medium text-slate-700">{dictionary.adminPage.packageDescriptionField}</label>
-            <textarea className={textareaClass} onChange={(event) => setDescription(event.target.value)} value={description} />
-            <button className={primaryButtonClass} disabled={isPending || name.trim().length < 2} onClick={handleCreatePackage} type="button">
-              {dictionary.adminPage.createPackage}
+        <div className="rounded-[22px] border border-slate-200 bg-slate-50/60 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="text-sm text-slate-600">
+              {selectedRecipeIds.length} {dictionary.adminPage.includedRecipes.toLowerCase()} • {selectedUserIds.length} {dictionary.adminPage.assignedUsers.toLowerCase()}
+            </div>
+            <button className={secondaryButtonClass} onClick={() => setIsCreateEditorExpanded((current) => !current)} type="button">
+              {isCreateEditorExpanded ? <ChevronUp className="mr-2 size-4" /> : <ChevronDown className="mr-2 size-4" />}
+              {isCreateEditorExpanded ? dictionary.adminPage.hidePackageEditor : dictionary.adminPage.editPackage}
             </button>
           </div>
 
-          <div className="space-y-3">
-            <p className="text-sm font-medium text-slate-700">{dictionary.adminPage.includedRecipes}</p>
-            <div className="grid max-h-[20rem] gap-1.5 overflow-y-auto pr-1">
-              {recipesState.map((recipe) => (
-                <label key={recipe.id} className={compactSelectionCardClass}>
-                  <input
-                    checked={selectedRecipeIds.includes(recipe.id)}
-                    className="mt-1"
-                    onChange={() => setSelectedRecipeIds((current) => toggleSelection(current, recipe.id))}
-                    type="checkbox"
-                  />
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-medium text-slate-950">{recipe.title}</span>
-                    <span className="block text-xs text-slate-500">{recipe.isPublic ? dictionary.adminPage.publicRecipe : dictionary.adminPage.adminOnlyRecipe}</span>
-                  </span>
-                </label>
-              ))}
-            </div>
-          </div>
+          {isCreateEditorExpanded ? (
+            <div className="mt-4 grid gap-4 lg:grid-cols-[0.8fr_1fr_1fr]">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-700">{dictionary.adminPage.packageName}</label>
+                <input className={inputClass} onChange={(event) => setName(event.target.value)} value={name} />
+                <label className="text-sm font-medium text-slate-700">{dictionary.adminPage.packageDescriptionField}</label>
+                <textarea className={textareaClass} onChange={(event) => setDescription(event.target.value)} value={description} />
+                <button className={primaryButtonClass} disabled={isPending || name.trim().length < 2} onClick={handleCreatePackage} type="button">
+                  {dictionary.adminPage.createPackage}
+                </button>
+              </div>
 
-          <div className="space-y-3">
-            <p className="text-sm font-medium text-slate-700">{dictionary.adminPage.assignedUsers}</p>
-            <div className="grid max-h-[20rem] gap-1.5 overflow-y-auto pr-1">
-              {usersState.map((user) => (
-                <label key={user.id} className={compactSelectionCardClass}>
-                  <input
-                    checked={selectedUserIds.includes(user.id)}
-                    className="mt-1"
-                    onChange={() => setSelectedUserIds((current) => toggleSelection(current, user.id))}
-                    type="checkbox"
-                  />
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-medium text-slate-950">{user.name}</span>
-                    <span className="block truncate text-xs text-slate-500">{user.email}</span>
-                  </span>
-                </label>
-              ))}
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-slate-700">{dictionary.adminPage.includedRecipes}</p>
+                <div className="grid max-h-[20rem] gap-1.5 overflow-y-auto pr-1">
+                  {recipesState.map((recipe) => (
+                    <label key={recipe.id} className={compactSelectionCardClass}>
+                      <input
+                        checked={selectedRecipeIds.includes(recipe.id)}
+                        className="mt-1"
+                        onChange={() => setSelectedRecipeIds((current) => toggleSelection(current, recipe.id))}
+                        type="checkbox"
+                      />
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-medium text-slate-950">{recipe.title}</span>
+                        <span className="block text-xs text-slate-500">{recipe.isPublic ? dictionary.adminPage.publicRecipe : dictionary.adminPage.adminOnlyRecipe}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-slate-700">{dictionary.adminPage.assignedUsers}</p>
+                <div className="grid max-h-[20rem] gap-1.5 overflow-y-auto pr-1">
+                  {usersState.map((user) => (
+                    <label key={user.id} className={compactSelectionCardClass}>
+                      <input
+                        checked={selectedUserIds.includes(user.id)}
+                        className="mt-1"
+                        onChange={() => setSelectedUserIds((current) => toggleSelection(current, user.id))}
+                        type="checkbox"
+                      />
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-medium text-slate-950">{user.name}</span>
+                        <span className="block truncate text-xs text-slate-500">{user.email}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
+          ) : null}
         </div>
 
         {packageMessage ? <p className="text-sm text-emerald-700">{packageMessage}</p> : null}
