@@ -73,7 +73,7 @@ export default function AnimatedMenuComponent({
     <>
       <button
         className={cn(
-          "fixed left-5 top-5 z-50 inline-flex size-11 items-center justify-center rounded-xl border border-amber-900/[0.08] bg-[#fffffe]/95 text-slate-950 shadow-[0_8px_24px_-12px_rgba(15,23,42,0.20),inset_0_1px_0_rgba(255,255,255,0.9)] transition duration-200 hover:scale-[1.03] active:scale-[0.97]",
+          "fixed left-5 top-5 z-50 inline-flex size-11 items-center justify-center rounded-xl border border-[#e8dcc0] bg-[#fcfcfb]/95 text-[#181611] shadow-[0_8px_24px_-12px_rgba(24,22,17,0.16),inset_0_1px_0_rgba(255,255,255,0.9)] transition duration-200 hover:scale-[1.03] active:scale-[0.97]",
           isOpen && "pointer-events-none opacity-0",
         )}
         onClick={() => setIsOpen(true)}
@@ -86,13 +86,13 @@ export default function AnimatedMenuComponent({
         <>
           <button
             aria-label="Close navigation"
-            className="fixed inset-0 z-40 bg-slate-900/28 transition-opacity duration-200 sm:backdrop-blur-[6px]"
+            className="fixed inset-0 z-40 bg-[#181611]/18 transition-opacity duration-200 sm:backdrop-blur-[6px]"
             onClick={closeMenu}
             type="button"
           />
 
-          <nav className="fixed left-0 top-0 z-50 flex h-[100dvh] w-[22rem] max-w-[92vw] flex-col overflow-hidden border-r border-black/[0.06] bg-white text-slate-950 shadow-[0_40px_90px_-36px_rgba(17,17,16,0.30)]">
-            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#c9ef38] via-[#c9ef38]/60 to-transparent" />
+          <nav className="fixed left-0 top-0 z-50 flex h-[100dvh] w-[22rem] max-w-[92vw] flex-col overflow-hidden border-r border-[#ece4d1] bg-[#fcfcfb] text-[#181611] shadow-[0_40px_90px_-36px_rgba(24,22,17,0.18)]">
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#98b694] via-[#98b694]/60 to-transparent" />
 
             <div className="relative flex h-full min-h-0 flex-col px-4 pb-3 pt-14">
               <button
@@ -114,8 +114,8 @@ export default function AnimatedMenuComponent({
                     width={384}
                   />
                 </div>
-                {title ? <h2 className="mt-3 max-w-[10ch] text-[2rem] font-semibold leading-[0.98] text-slate-950">{title}</h2> : null}
-                {description ? <p className="mt-2 max-w-[24rem] text-sm leading-6 text-slate-600">{description}</p> : null}
+                {title ? <h2 className="mt-3 max-w-[10ch] text-[2rem] font-semibold leading-[0.98] text-[#181611]">{title}</h2> : null}
+                {description ? <p className="mt-2 max-w-[24rem] text-sm leading-6 text-[#6e675c]">{description}</p> : null}
                 {resolvedTopSlot ? <div className="mt-4">{resolvedTopSlot}</div> : null}
               </div>
 
@@ -127,8 +127,8 @@ export default function AnimatedMenuComponent({
                         className={cn(
                           "group flex items-center gap-3 rounded-2xl px-3 py-2 text-sm font-medium transition-all duration-150",
                           item.active
-                            ? "bg-[#c9ef38] !text-[#111110] shadow-[0_8px_20px_-8px_rgba(140,190,0,0.40)]"
-                            : "text-slate-600 hover:bg-slate-50 hover:text-[#111110]",
+                            ? "bg-[#98b694] !text-[#181611] shadow-[0_8px_20px_-8px_rgba(152,182,148,0.35)]"
+                            : "text-[#6e675c] hover:bg-[#f3e7c3]/30 hover:text-[#181611]",
                         )}
                         href={item.href}
                         onClick={() => {
@@ -140,22 +140,22 @@ export default function AnimatedMenuComponent({
                           className={cn(
                             "inline-flex size-9 shrink-0 items-center justify-center rounded-2xl transition-all",
                             item.active
-                              ? "bg-[#111110] text-white"
-                              : "bg-slate-100 text-slate-500 group-hover:bg-[#c9ef38]/30 group-hover:text-[#3a5010]",
+                              ? "bg-[#181611] text-[#fcfcfb]"
+                              : "bg-[#f5f0e3] text-[#817869] group-hover:bg-[#f8afe5]/25 group-hover:text-[#181611]",
                           )}
                         >
                           <item.icon className="size-4.5" />
                         </span>
-                        <span className={cn("truncate", item.active && "font-semibold text-[#111110]")}>{item.label}</span>
+                        <span className={cn("truncate", item.active && "font-semibold text-[#181611]")}>{item.label}</span>
                       </Link>
                     </li>
                   ))}
                 </ul>
 
-                <div className="shrink-0 space-y-2 border-t border-slate-100 pt-2">
+                <div className="shrink-0 space-y-2 border-t border-[#efe7d7] pt-2">
                   {footer}
                   {hint ? (
-                    <div className="rounded-2xl border border-slate-200 bg-white/65 px-3 py-2 text-xs text-slate-600">
+                    <div className="rounded-2xl border border-[#e7ddc6] bg-white/75 px-3 py-2 text-xs text-[#6e675c]">
                       {hint}
                     </div>
                   ) : null}

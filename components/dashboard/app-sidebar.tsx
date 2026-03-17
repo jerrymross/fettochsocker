@@ -73,12 +73,12 @@ export function AppSidebar({
       brand={dictionary.common.brand}
       description=""
       footer={
-        <div className="rounded-[18px] bg-slate-50 p-3">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-slate-400">{dictionary.common.signedInAs}</p>
-          <p className="mt-1 text-sm font-semibold text-[#111110]">{userName}</p>
+        <div className="rounded-[18px] bg-[#f7f1e3] p-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-[#817869]">{dictionary.common.signedInAs}</p>
+          <p className="mt-1 text-sm font-semibold text-[#181611]">{userName}</p>
           <LanguageToggle className="mt-2 border-slate-200 bg-white px-2 py-1 text-xs" />
           <button
-            className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-[14px] bg-[#111110] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_6px_18px_-8px_rgba(17,17,16,0.50)] transition-all duration-200 hover:bg-[#1e261a] active:scale-[0.98]"
+            className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-[14px] bg-[#181611] px-4 py-2.5 text-sm font-semibold text-[#fcfcfb] shadow-[0_6px_18px_-8px_rgba(24,22,17,0.26)] transition-all duration-200 hover:bg-[#2c261c] active:scale-[0.98]"
             onClick={logout}
             type="button"
           >
