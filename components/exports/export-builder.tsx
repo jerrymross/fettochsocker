@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Download } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
 import { inputClass, panelClass, primaryButtonClass } from "@/lib/ui";
@@ -19,7 +19,7 @@ export function ExportBuilder({ recipes }: { recipes: ExportableRecipe[] }) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const selectedCount = useMemo(() => selectedIds.length, [selectedIds]);
+  const selectedCount = selectedIds.length;
 
   function toggleRecipe(recipeId: string) {
     setSelectedIds((current) =>

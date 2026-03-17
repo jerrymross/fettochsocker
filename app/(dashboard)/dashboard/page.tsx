@@ -11,10 +11,11 @@ import { StatCard } from "@/components/dashboard/stat-card";
 import { panelClass, primaryButtonClass, secondaryButtonClass } from "@/lib/ui";
 
 export default async function DashboardPage() {
-  const locale = await getLocale();
+  const localePromise = getLocale();
+  const sessionPromise = requireSession();
+  const [locale, session] = await Promise.all([localePromise, sessionPromise]);
   const dictionary = getDictionary(locale);
   const moduleMeta = getModuleMeta(locale);
-  const session = await requireSession();
   const [recipeCount, importCount, exportCount, enabledModules, recentRecipes] = await Promise.all([
     countRecipes(session.userId, session.role),
     prisma.importJob.count(),

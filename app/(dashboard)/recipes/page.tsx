@@ -1,4 +1,5 @@
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { getDictionary } from "@/lib/i18n";
 import { listRecipeCategories } from "@/lib/server/recipe-categories";
 import { getLocale } from "@/lib/server/locale";
@@ -7,14 +8,21 @@ import { listRecipeSummaries } from "@/lib/server/recipes";
 import { requireSession } from "@/lib/server/session";
 import { formatDate, formatGrams, toNumber } from "@/lib/utils";
 import { PageHeader } from "@/components/dashboard/page-header";
-import { RecipeList } from "@/components/recipes/recipe-list";
 import { panelClass, primaryButtonClass } from "@/lib/ui";
 
+const RecipeList = dynamic(
+  () => import("@/components/recipes/recipe-list").then((module) => module.RecipeList),
+  {
+    loading: () => <div className={`${panelClass} min-h-[24rem] animate-pulse bg-slate-50/70`} />,
+  },
+);
+
 export default async function RecipesPage() {
-  const locale = await getLocale();
+  const localePromise = getLocale();
+  const sessionPromise = requireSession();
+  await Promise.all([sessionPromise, requireModuleEnabled("RECIPES")]);
+  const [locale, session] = await Promise.all([localePromise, sessionPromise]);
   const dictionary = getDictionary(locale);
-  const session = await requireSession();
-  await requireModuleEnabled("RECIPES");
   const [recipes, categories] = await Promise.all([
     listRecipeSummaries(session.userId, session.role),
     listRecipeCategories(),

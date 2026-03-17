@@ -8,8 +8,7 @@ import { shellCardClass } from "@/lib/ui";
 import { getSession } from "@/lib/server/session";
 
 export default async function LoginPage() {
-  const session = await getSession();
-  const locale = await getLocale();
+  const [session, locale] = await Promise.all([getSession(), getLocale()]);
   const dictionary = getDictionary(locale);
 
   if (session) {
@@ -43,10 +42,11 @@ export default async function LoginPage() {
             <Image
               alt={dictionary.common.brand}
               className="mt-4 h-auto w-full object-contain max-h-[35dvh]"
-              height={1024}
+              height={384}
               priority
-              src="/logo.png"
-              width={1024}
+              sizes="(min-width: 1024px) 36rem, 90vw"
+              src="/logo-384.png"
+              width={384}
             />
           </div>
           <h1 className="mt-8 max-w-xl text-[3rem] font-semibold leading-[1.06] tracking-[-0.04em]">{dictionary.auth.loginHeroTitle}</h1>
@@ -73,10 +73,11 @@ export default async function LoginPage() {
             <Image
               alt={dictionary.common.brand}
               className="h-auto w-full object-contain max-h-[40dvh]"
-              height={1024}
+              height={384}
               priority
-              src="/logo.png"
-              width={1024}
+              sizes="90vw"
+              src="/logo-384.png"
+              width={384}
             />
           </div>
           <div className="mt-3 flex items-center gap-2.5 lg:mt-0">

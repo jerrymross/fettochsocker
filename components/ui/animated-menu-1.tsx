@@ -108,10 +108,10 @@ export default function AnimatedMenuComponent({
                   <Image
                     alt={brand}
                     className="h-auto max-h-[7.5rem] w-full object-contain"
-                    height={1024}
-                    sizes="(max-width: 640px) 80vw, 24rem"
-                    src="/logo.png"
-                    width={1024}
+                    height={384}
+                    sizes="(max-width: 640px) 72vw, 18rem"
+                    src="/logo-384.png"
+                    width={384}
                   />
                 </div>
                 {title ? <h2 className="mt-3 max-w-[10ch] text-[2rem] font-semibold leading-[0.98] text-slate-950">{title}</h2> : null}

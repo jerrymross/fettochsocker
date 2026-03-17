@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronRight, Search } from "lucide-react";
 import type { RecipeCategoryOption } from "@/lib/recipe-categories";
@@ -52,44 +52,57 @@ export function RecipeList({
   const [sortBy, setSortBy] = useState<"UPDATED" | "TITLE" | "CATEGORY">("UPDATED");
   const [showPublicRecipes, setShowPublicRecipes] = useState(true);
   const [showOwnRecipes, setShowOwnRecipes] = useState(true);
+  const deferredQuery = useDeferredValue(query);
 
-  const filteredRecipes = recipes
-    .filter((recipe) => {
-      const normalizedQuery = query.trim().toLowerCase();
-      const matchesQuery =
-        normalizedQuery === "" ||
-        recipe.title.toLowerCase().includes(normalizedQuery) ||
-        recipe.categories.some((category) => category.name.toLowerCase().includes(normalizedQuery));
+  const filteredRecipes = useMemo(() => {
+    const normalizedQuery = deferredQuery.trim().toLowerCase();
 
-      const matchesCategory =
-        selectedCategoryId === "ALL" || recipe.categories.some((category) => category.id === selectedCategoryId);
+    return recipes
+      .filter((recipe) => {
+        const matchesQuery =
+          normalizedQuery === "" ||
+          recipe.title.toLowerCase().includes(normalizedQuery) ||
+          recipe.categories.some((category) => category.name.toLowerCase().includes(normalizedQuery));
 
-      const matchesAccess =
-        !showAccessFilters ||
-        (showPublicRecipes && recipe.isPublic) ||
-        (showOwnRecipes && recipe.isOwnRecipe);
+        const matchesCategory =
+          selectedCategoryId === "ALL" || recipe.categories.some((category) => category.id === selectedCategoryId);
 
-      return matchesQuery && matchesCategory && matchesAccess;
-    })
-    .sort((left, right) => {
-      if (sortBy === "TITLE") {
-        return left.title.localeCompare(right.title, undefined, { sensitivity: "base" });
-      }
+        const matchesAccess =
+          !showAccessFilters ||
+          (showPublicRecipes && recipe.isPublic) ||
+          (showOwnRecipes && recipe.isOwnRecipe);
 
-      if (sortBy === "CATEGORY") {
-        const leftCategory = left.categories.map((category) => category.name).sort()[0] ?? labels.uncategorized;
-        const rightCategory = right.categories.map((category) => category.name).sort()[0] ?? labels.uncategorized;
-        const categoryComparison = leftCategory.localeCompare(rightCategory, undefined, { sensitivity: "base" });
-
-        if (categoryComparison !== 0) {
-          return categoryComparison;
+        return matchesQuery && matchesCategory && matchesAccess;
+      })
+      .sort((left, right) => {
+        if (sortBy === "TITLE") {
+          return left.title.localeCompare(right.title, undefined, { sensitivity: "base" });
         }
 
-        return left.title.localeCompare(right.title, undefined, { sensitivity: "base" });
-      }
+        if (sortBy === "CATEGORY") {
+          const leftCategory = left.categories.map((category) => category.name).sort()[0] ?? labels.uncategorized;
+          const rightCategory = right.categories.map((category) => category.name).sort()[0] ?? labels.uncategorized;
+          const categoryComparison = leftCategory.localeCompare(rightCategory, undefined, { sensitivity: "base" });
 
-      return right.updatedAtValue.localeCompare(left.updatedAtValue);
-    });
+          if (categoryComparison !== 0) {
+            return categoryComparison;
+          }
+
+          return left.title.localeCompare(right.title, undefined, { sensitivity: "base" });
+        }
+
+        return right.updatedAtValue.localeCompare(left.updatedAtValue);
+      });
+  }, [
+    deferredQuery,
+    labels.uncategorized,
+    recipes,
+    selectedCategoryId,
+    showAccessFilters,
+    showOwnRecipes,
+    showPublicRecipes,
+    sortBy,
+  ]);
 
   return (
     <div className="space-y-0">

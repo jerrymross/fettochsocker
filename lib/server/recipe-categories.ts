@@ -2,14 +2,26 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { defaultRecipeCategoryNames, normalizeRecipeCategoryName } from "@/lib/recipe-categories";
 
+let defaultCategorySeedPromise: Promise<void> | null = null;
+
 export async function ensureDefaultRecipeCategories() {
-  await prisma.recipeCategory.createMany({
-    data: defaultRecipeCategoryNames.map((name, index) => ({
-      name,
-      sortOrder: index + 1,
-    })),
-    skipDuplicates: true,
-  });
+  if (!defaultCategorySeedPromise) {
+    defaultCategorySeedPromise = prisma.recipeCategory
+      .createMany({
+        data: defaultRecipeCategoryNames.map((name, index) => ({
+          name,
+          sortOrder: index + 1,
+        })),
+        skipDuplicates: true,
+      })
+      .then(() => undefined)
+      .catch((error) => {
+        defaultCategorySeedPromise = null;
+        throw error;
+      });
+  }
+
+  await defaultCategorySeedPromise;
 }
 
 export async function listRecipeCategories() {

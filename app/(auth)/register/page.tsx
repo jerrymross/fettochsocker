@@ -7,8 +7,7 @@ import { shellCardClass } from "@/lib/ui";
 import { getSession } from "@/lib/server/session";
 
 export default async function RegisterPage() {
-  const session = await getSession();
-  const locale = await getLocale();
+  const [session, locale] = await Promise.all([getSession(), getLocale()]);
   const dictionary = getDictionary(locale);
 
   if (session) {

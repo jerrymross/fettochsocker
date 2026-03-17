@@ -8,8 +8,9 @@ export default async function DashboardLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [session, locale] = await Promise.all([requireSession(), getLocale()]);
-  const modules = await getEnabledModules(locale);
+  const localePromise = getLocale();
+  const modulesPromise = localePromise.then((locale) => getEnabledModules(locale));
+  const [session, modules] = await Promise.all([requireSession(), modulesPromise]);
 
   return (
     <div className="min-h-screen">

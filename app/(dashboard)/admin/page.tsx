@@ -1,16 +1,24 @@
 import Link from "next/link";
-import { AdminCatalogManager } from "@/components/admin/admin-catalog-manager";
+import dynamic from "next/dynamic";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { getDictionary } from "@/lib/i18n";
 import { getLocale } from "@/lib/server/locale";
 import { listAdminRecipeCatalog, listAdminUsers, listRecipePackages } from "@/lib/server/admin";
 import { requireAdminSession } from "@/lib/server/session";
-import { primaryButtonClass } from "@/lib/ui";
+import { panelClass, primaryButtonClass } from "@/lib/ui";
+
+const AdminCatalogManager = dynamic(
+  () => import("@/components/admin/admin-catalog-manager").then((module) => module.AdminCatalogManager),
+  {
+    loading: () => <div className={`${panelClass} min-h-[24rem] animate-pulse bg-slate-50/70`} />,
+  },
+);
 
 export default async function AdminPage() {
-  const locale = await getLocale();
+  const localePromise = getLocale();
+  const sessionPromise = requireAdminSession();
+  const [locale, session] = await Promise.all([localePromise, sessionPromise]);
   const dictionary = getDictionary(locale);
-  const session = await requireAdminSession();
 
   const [recipes, users, packages] = await Promise.all([
     listAdminRecipeCatalog(),

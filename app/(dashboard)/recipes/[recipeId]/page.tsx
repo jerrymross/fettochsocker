@@ -1,9 +1,9 @@
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { DeleteRecipeButton } from "@/components/recipes/delete-recipe-button";
 import { RecipeDocumentActions } from "@/components/recipes/recipe-document-actions";
-import { RecipeEditor } from "@/components/recipes/recipe-editor";
 import { RecipeReadonly } from "@/components/recipes/recipe-readonly";
 import { RecipeScaler } from "@/components/recipes/recipe-scaler";
 import { getDictionary } from "@/lib/i18n";
@@ -16,6 +16,13 @@ import { requireSession } from "@/lib/server/session";
 import { formatDateTime, formatGrams, slugify, toNumber } from "@/lib/utils";
 import { panelClass, primaryButtonClass, secondaryButtonClass } from "@/lib/ui";
 
+const RecipeEditor = dynamic(
+  () => import("@/components/recipes/recipe-editor").then((module) => module.RecipeEditor),
+  {
+    loading: () => <div className={`${panelClass} min-h-[24rem] animate-pulse bg-slate-50/70`} />,
+  },
+);
+
 export default async function RecipeDetailPage({
   params,
   searchParams,
@@ -23,15 +30,21 @@ export default async function RecipeDetailPage({
   params: Promise<{ recipeId: string }>;
   searchParams: Promise<{ edit?: string; saved?: string }>;
 }) {
-  const locale = await getLocale();
+  const localePromise = getLocale();
+  const sessionPromise = requireSession();
+  const [{ recipeId }, { edit, saved }, locale, session] = await Promise.all([
+    params,
+    searchParams,
+    localePromise,
+    sessionPromise,
+    requireModuleEnabled("RECIPES"),
+  ]);
   const dictionary = getDictionary(locale);
-  const session = await requireSession();
-  await requireModuleEnabled("RECIPES");
-  const exportEnabled = await isModuleEnabled("EXPORT");
-  const availableCategories = await listRecipeCategories();
-  const { recipeId } = await params;
-  const { edit, saved } = await searchParams;
-  const recipe = await getRecipeById(recipeId, session.userId, session.role);
+  const [exportEnabled, availableCategories, recipe] = await Promise.all([
+    isModuleEnabled("EXPORT"),
+    listRecipeCategories(),
+    getRecipeById(recipeId, session.userId, session.role),
+  ]);
 
   if (!recipe) {
     notFound();
