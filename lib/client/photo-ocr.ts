@@ -388,7 +388,7 @@ export async function extractPhotoText(
 
   if (isUnreliableOcrText(bestText)) {
     throw new Error(
-      "Fotot gick inte att lasa tillrackligt tydligt. Beskar narmare receptet och ta bilden rakt ovanifran.",
+      "Fotot gick inte att läsa tillräckligt tydligt. Beskär närmare receptet och ta bilden rakt ovanifrån.",
     );
   }
 
