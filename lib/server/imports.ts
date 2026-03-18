@@ -1,4 +1,4 @@
-import { IngredientUnit } from "@prisma/client";
+﻿import { IngredientUnit } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { CommitImportInput } from "@/lib/schemas/imports";
 import { saveRecipe } from "@/lib/server/recipes";
@@ -11,6 +11,11 @@ type ParsedRecipePreview = {
   ingredients: Array<{ name: string; quantity: number; unit: IngredientUnit; note?: string }>;
   steps: Array<{ instruction: string }>;
   rawText: string;
+};
+
+type ParsedIngredientAmount = {
+  quantity: number;
+  unit: IngredientUnit;
 };
 
 type ImportFileKind = "txt" | "docx" | "pdf" | "unknown";
@@ -49,8 +54,7 @@ const methodVerbHints = [
   "heat",
   "bring",
 ];
-const ingredientLineUnitPattern =
-  /(kg|g|gr|gram|grams|ml|cl|dl|l|tsk|tsp|teaspoon|teaspoons|msk|tbsp|tablespoon|tablespoons|st|pcs|pc|stycken?)/i;
+const ingredientLineUnitPattern = /(kg|g|gr|gram|grams|ml|cl|dl|l|tsk|tsp|teaspoon|teaspoons|msk|tbsp|tablespoon|tablespoons|st|pcs|pc|stycken?|krm|kryddm[aÃ¥]tt|nypa|nypor)/iu;
 const ingredientUnitAliases: Array<[RegExp, IngredientUnit]> = [
   [/^(g|gr|gram|grams)$/i, IngredientUnit.G],
   [/^kg$/i, IngredientUnit.KG],
@@ -142,6 +146,18 @@ const ingredientNameHints = [
   "jast",
 ];
 const extraCommonRecipeTerms = ["mjol", "vetemjol", "bakpulver", "salt", "kaka", "vaniljkram", "smorkram", "mousse", "fyllning"];
+const quantityTokenPattern = String.raw`(?:\d+\s+\d+/\d+|\d+/\d+|\d+(?:[.,]\d+)?|[Â¼Â½Â¾â…“â…”â…›â…œâ…â…ž])`;
+const supportedIngredientUnitTokenPattern = String.raw`kg|g|gr|gram|grams|ml|cl|dl|l|tsk|tsp|teaspoon(?:s)?|msk|tbsp|tablespoon(?:s)?|st|pcs|pc|stycken?`;
+const extendedIngredientUnitTokenPattern = String.raw`${supportedIngredientUnitTokenPattern}|krm|kryddm[aÃ¥]tt|nypa|nypor`;
+const ingredientAmountFirstPattern = new RegExp(
+  `^\\s*[-*â€¢]?\\s*(${quantityTokenPattern}(?:\\s*-\\s*${quantityTokenPattern})?)\\s*(${extendedIngredientUnitTokenPattern})?\\s+(.+)$`,
+  "iu",
+);
+const ingredientAmountLastPattern = new RegExp(
+  `^(.*\\D)\\s+(${quantityTokenPattern}(?:\\s*-\\s*${quantityTokenPattern})?)\\s*(${extendedIngredientUnitTokenPattern})?$`,
+  "iu",
+);
+const ingredientUnitTokenPattern = new RegExp(`\\b(${extendedIngredientUnitTokenPattern})\\b`, "iu");
 function normalizeLine(line: string) {
   return line
     .replace(/\u00a0/g, " ")
@@ -245,40 +261,40 @@ function levenshteinDistance(left: string, right: string) {
 
 function restoreNordicWord(value: string) {
   return value
-    .replace(/gradde/gi, "grädde")
-    .replace(/gradda/gi, "grädda")
-    .replace(/mjol/gi, "mjöl")
-    .replace(/smor/gi, "smör")
-    .replace(/vaniljkram/gi, "vaniljkräm")
-    .replace(/smorkram/gi, "smörkräm")
-    .replace(/strosocker/gi, "strösocker")
-    .replace(/satt/gi, "sätt")
-    .replace(/forvarm/gi, "förvärm")
-    .replace(/mjolk/gi, "mjölk")
-    .replace(/tillsatt/gi, "tillsätt")
-    .replace(/ror/gi, "rör")
-    .replace(/smalt/gi, "smält");
+    .replace(/gradde/gi, "grÃ¤dde")
+    .replace(/gradda/gi, "grÃ¤dda")
+    .replace(/mjol/gi, "mjÃ¶l")
+    .replace(/smor/gi, "smÃ¶r")
+    .replace(/vaniljkram/gi, "vaniljkrÃ¤m")
+    .replace(/smorkram/gi, "smÃ¶rkrÃ¤m")
+    .replace(/strosocker/gi, "strÃ¶socker")
+    .replace(/satt/gi, "sÃ¤tt")
+    .replace(/forvarm/gi, "fÃ¶rvÃ¤rm")
+    .replace(/mjolk/gi, "mjÃ¶lk")
+    .replace(/tillsatt/gi, "tillsÃ¤tt")
+    .replace(/ror/gi, "rÃ¶r")
+    .replace(/smalt/gi, "smÃ¤lt");
 }
 
 function restoreNordicWordSafe(value: string) {
   return value
-    .replace(/gradde/gi, "grädde")
-    .replace(/gradda/gi, "grädda")
-    .replace(/mjol/gi, "mjöl")
-    .replace(/smor/gi, "smör")
-    .replace(/vaniljkram/gi, "vaniljkräm")
-    .replace(/smorkram/gi, "smörkräm")
-    .replace(/strosocker/gi, "strösocker")
-    .replace(/satt/gi, "sätt")
-    .replace(/forvarm/gi, "förvärm")
-    .replace(/mjolk/gi, "mjölk")
-    .replace(/tillsatt/gi, "tillsätt")
-    .replace(/ror/gi, "rör")
-    .replace(/smalt/gi, "smält")
-    .replace(/aggen/gi, "äggen")
-    .replace(/agg/gi, "ägg")
-    .replace(/hall/gi, "häll")
-    .replace(/vand/gi, "vänd");
+    .replace(/gradde/gi, "grÃ¤dde")
+    .replace(/gradda/gi, "grÃ¤dda")
+    .replace(/mjol/gi, "mjÃ¶l")
+    .replace(/smor/gi, "smÃ¶r")
+    .replace(/vaniljkram/gi, "vaniljkrÃ¤m")
+    .replace(/smorkram/gi, "smÃ¶rkrÃ¤m")
+    .replace(/strosocker/gi, "strÃ¶socker")
+    .replace(/satt/gi, "sÃ¤tt")
+    .replace(/forvarm/gi, "fÃ¶rvÃ¤rm")
+    .replace(/mjolk/gi, "mjÃ¶lk")
+    .replace(/tillsatt/gi, "tillsÃ¤tt")
+    .replace(/ror/gi, "rÃ¶r")
+    .replace(/smalt/gi, "smÃ¤lt")
+    .replace(/aggen/gi, "Ã¤ggen")
+    .replace(/agg/gi, "Ã¤gg")
+    .replace(/hall/gi, "hÃ¤ll")
+    .replace(/vand/gi, "vÃ¤nd");
 }
 
 function repairRecipeToken(token: string) {
@@ -393,19 +409,94 @@ function isYieldLine(line: string) {
   return yieldPrefixes.some((prefix) => canonical.startsWith(prefix));
 }
 
-function parseQuantityValue(line: string) {
-  const normalized = line.replace(",", ".").replace(/[^\d.\- ]/g, " ").trim();
-  const rangeMatch = normalized.match(/(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)/);
-  if (rangeMatch) {
-    return Number(rangeMatch[1]);
+function expandFractionGlyphs(value: string) {
+  return value
+    .replace(/(\d)([\u00BC\u00BD\u00BE\u2153\u2154\u215B\u215C\u215D\u215E])/g, "$1 $2")
+    .replace(/\u00BC/g, "1/4")
+    .replace(/\u00BD/g, "1/2")
+    .replace(/\u00BE/g, "3/4")
+    .replace(/\u2153/g, "1/3")
+    .replace(/\u2154/g, "2/3")
+    .replace(/\u215B/g, "1/8")
+    .replace(/\u215C/g, "3/8")
+    .replace(/\u215D/g, "5/8")
+    .replace(/\u215E/g, "7/8");
+}
+
+function parseSingleQuantityToken(value: string): number {
+  const normalized = expandFractionGlyphs(value).replace(",", ".").trim();
+
+  if (!normalized) {
+    return 0;
   }
 
-  const match = normalized.match(/(\d+(?:\.\d+)?)/);
+  if (normalized.includes(" ")) {
+    return normalized
+      .split(/\s+/)
+      .map((token) => parseSingleQuantityToken(token))
+      .reduce((sum, part) => sum + part, 0);
+  }
+
+  if (normalized.includes("/")) {
+    const [numerator, denominator] = normalized.split("/");
+    const numeratorValue = Number(numerator);
+    const denominatorValue = Number(denominator);
+
+    if (!denominatorValue) {
+      return 0;
+    }
+
+    return numeratorValue / denominatorValue;
+  }
+
+  return Number(normalized);
+}
+
+function normalizeParsedIngredientAmount(quantity: number, rawUnit?: string | null, ingredientName?: string): ParsedIngredientAmount {
+  const normalizedUnit = rawUnit?.trim().toLowerCase();
+  const canonicalName = canonicalizeForMatch(ingredientName ?? "");
+
+  if (normalizedUnit === "krm" || normalizedUnit === "kryddmått" || normalizedUnit === "kryddmatt") {
+    return {
+      quantity: Number((quantity * 0.2).toFixed(2)),
+      unit: IngredientUnit.TSP,
+    };
+  }
+
+  if (normalizedUnit === "nypa" || normalizedUnit === "nypor") {
+    const gramsPerPinch = canonicalName.includes("salt") ? 0.5 : 0.35;
+    return {
+      quantity: Number((quantity * gramsPerPinch).toFixed(2)),
+      unit: IngredientUnit.G,
+    };
+  }
+
+  if (!normalizedUnit && /^(agg|aggen|aggvita|aggula)$/i.test(canonicalName)) {
+    return {
+      quantity,
+      unit: IngredientUnit.PCS,
+    };
+  }
+
+  return {
+    quantity,
+    unit: detectIngredientUnit(rawUnit),
+  };
+}
+
+function parseQuantityValue(line: string) {
+  const normalized = expandFractionGlyphs(line).replace(",", ".").trim();
+  const rangeMatch = normalized.match(new RegExp(`(${quantityTokenPattern})\\s*-\\s*(${quantityTokenPattern})`, "iu"));
+  if (rangeMatch) {
+    return parseSingleQuantityToken(rangeMatch[1]);
+  }
+
+  const match = normalized.match(new RegExp(`(${quantityTokenPattern})`, "iu"));
   if (!match) {
     return 0;
   }
 
-  return Number(match[1]);
+  return parseSingleQuantityToken(match[1]);
 }
 
 function parseQuantity(line: string) {
@@ -427,23 +518,18 @@ function detectIngredientUnit(value?: string | null) {
   return IngredientUnit.G;
 }
 
-function extractIngredientUnitFromLine(line: string) {
-  const match = normalizeLine(line).match(
-    /(\bkg\b|\bg\b|\bgr\b|\bgram\b|\bgrams\b|\bml\b|\bcl\b|\bdl\b|\bl\b|\btsk\b|\btsp\b|\bteaspoon(?:s)?\b|\bmsk\b|\btbsp\b|\btablespoon(?:s)?\b|\bst\b|\bpcs\b|\bpc\b|\bstycken?\b)/i,
-  );
-
-  return detectIngredientUnit(match?.[0]);
-}
-
 function extractIngredientName(line: string) {
   return line
-    .replace(/^\s*[-*•]\s*/, "")
+    .replace(/^\s*[-*â€¢]\s*/, "")
     .replace(/\s+\d+(?:[.,]\d+)?(?:\s*-\s*\d+(?:[.,]\d+)?)?\s*(g|gram|grams|kg|ml|cl|dl|l|tsk|tsp|msk|tbsp|st|pcs)?$/i, "")
     .trim();
 }
 
 function looksLikeQuantityOnly(line: string) {
-  return /^(\d+(?:[.,]\d+)?)(\s*-\s*\d+(?:[.,]\d+)?)?\s*(kg|g|gr|gram|grams|ml|cl|dl|l|tsk|tsp|teaspoon|teaspoons|msk|tbsp|tablespoon|tablespoons|st|pcs|pc|stycken?)?$/i.test(line);
+  return new RegExp(
+    `^(${quantityTokenPattern})(\\s*-\\s*${quantityTokenPattern})?\\s*(${extendedIngredientUnitTokenPattern})?$`,
+    "iu",
+  ).test(normalizeLine(line));
 }
 
 function isIngredientTableHeader(line: string) {
@@ -469,7 +555,7 @@ function looksLikeInstruction(line: string) {
     return false;
   }
 
-  if (looksLikeQuantityOnly(normalized) || parseInlineIngredientLine(normalized)) {
+  if (looksLikeQuantityOnly(normalized) || parseInlineIngredientLineEnhanced(normalized)) {
     return false;
   }
 
@@ -601,26 +687,28 @@ function isLikelyMethodTransition(lines: string[], index: number) {
   return false;
 }
 
-function parseInlineIngredientLine(line: string) {
+function parseInlineIngredientLineEnhanced(line: string) {
   if (looksLikeTemperatureOrOvenInstruction(line)) {
     return null;
   }
 
-  const amountFirstMatch = line.match(
-    /^\s*[-*â€¢]?\s*(\d+(?:[.,]\d+)?(?:\s*-\s*\d+(?:[.,]\d+)?)?)\s*(kg|g|gr|gram|grams|ml|cl|dl|l|tsk|tsp|teaspoon|teaspoons|msk|tbsp|tablespoon|tablespoons|st|pcs|pc|stycken?)?\s+(.+)$/i,
-  );
+  const amountFirstMatch = expandFractionGlyphs(line).match(ingredientAmountFirstPattern);
 
   if (amountFirstMatch) {
+    const normalizedAmount = normalizeParsedIngredientAmount(
+      parseQuantity(amountFirstMatch[1]) || 1,
+      amountFirstMatch[2],
+      amountFirstMatch[3],
+    );
+
     return {
       name: sanitizeIngredientName(amountFirstMatch[3]),
-      quantity: parseQuantity(amountFirstMatch[1]) || 1,
-      unit: detectIngredientUnit(amountFirstMatch[2]),
+      quantity: normalizedAmount.quantity,
+      unit: normalizedAmount.unit,
     };
   }
 
-  const amountLastMatch = line.match(
-    /^(.*\D)\s+(\d+(?:[.,]\d+)?(?:\s*-\s*\d+(?:[.,]\d+)?)?)\s*(kg|g|gr|gram|grams|ml|cl|dl|l|tsk|tsp|teaspoon|teaspoons|msk|tbsp|tablespoon|tablespoons|st|pcs|pc|stycken?)?$/i,
-  );
+  const amountLastMatch = expandFractionGlyphs(line).match(ingredientAmountLastPattern);
 
   if (!amountLastMatch) {
     return null;
@@ -640,10 +728,16 @@ function parseInlineIngredientLine(line: string) {
     return null;
   }
 
+  const normalizedAmount = normalizeParsedIngredientAmount(
+    parseQuantity(amountLastMatch[2]) || 1,
+    amountLastMatch[3],
+    amountLastName,
+  );
+
   return {
     name: amountLastName,
-    quantity: parseQuantity(amountLastMatch[2]) || 1,
-    unit: detectIngredientUnit(amountLastMatch[3]),
+    quantity: normalizedAmount.quantity,
+    unit: normalizedAmount.unit,
   };
 }
 
@@ -668,7 +762,7 @@ function looksLikeIngredientLine(line: string) {
     return false;
   }
 
-  if (parseInlineIngredientLine(normalized) || looksLikeQuantityOnly(normalized)) {
+  if (parseInlineIngredientLineEnhanced(normalized) || looksLikeQuantityOnly(normalized)) {
     return true;
   }
 
@@ -739,7 +833,7 @@ function isLikelySectionTitle(line: string) {
     return false;
   }
 
-  return /^[\p{L}0-9][\p{L}0-9 ,()/'’&+-]{2,80}$/u.test(line) && !line.endsWith(":") && !line.endsWith(".");
+  return /^[\p{L}0-9][\p{L}0-9 ,()/'â€™&+-]{2,80}$/u.test(line) && !line.endsWith(":") && !line.endsWith(".");
 }
 
 function findNextSectionIndex(lines: string[], startIndex: number) {
@@ -797,16 +891,17 @@ function parseIngredientLines(lines: string[]) {
     }
 
     if (looksLikeQuantityOnly(line) && pendingName) {
+      const normalizedAmount = normalizeParsedIngredientAmount(parseQuantity(line) || 1, normalizeLine(line).match(ingredientUnitTokenPattern)?.[0], pendingName);
       ingredients.push({
         name: sanitizeIngredientName(pendingName),
-        quantity: parseQuantity(line) || 1,
-        unit: extractIngredientUnitFromLine(line),
+        quantity: normalizedAmount.quantity,
+        unit: normalizedAmount.unit,
       });
       pendingName = null;
       continue;
     }
 
-    const parsedInlineIngredient = parseInlineIngredientLine(line);
+    const parsedInlineIngredient = parseInlineIngredientLineEnhanced(line);
     if (parsedInlineIngredient) {
       ingredients.push({
         name: sanitizeIngredientName(parsedInlineIngredient.name) || "Ingredient",
@@ -999,7 +1094,7 @@ export function mapRecipeFromText(rawText: string): ParsedRecipePreview {
         : inferredSourceIngredientLines;
   const sourceIngredientCandidateLines = sourceLines
     .slice(sourceTitleIndex + 1, sourceStepIndex >= 0 ? sourceStepIndex : sourceLines.length)
-    .filter((line) => !isLikelyNoiseLine(line) && (parseInlineIngredientLine(line) || looksLikeQuantityOnly(line)));
+    .filter((line) => !isLikelyNoiseLine(line) && (parseInlineIngredientLineEnhanced(line) || looksLikeQuantityOnly(line)));
   const lastIngredientIndex =
     fallbackSourceIngredientLines.length > 0
       ? lines.findIndex((line) => line === fallbackSourceIngredientLines[fallbackSourceIngredientLines.length - 1])
@@ -1187,3 +1282,4 @@ export async function commitImport(userId: string, input: CommitImportInput) {
 
   return recipe;
 }
+

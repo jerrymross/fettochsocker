@@ -35,7 +35,7 @@ export function RecipeScaler({
       })),
     [factor, recipe.ingredients],
   );
-  const hasNonWeightUnits = recipe.ingredients.some((ingredient) => !usesWeightUnit(ingredient.unit));
+  const hasNonWeightUnits = recipe.ingredients.some((ingredient) => !usesWeightUnit(ingredient.unit, ingredient.name));
   const scaledDocument = useMemo<PrintableRecipeDocument>(
     () => ({
       title: recipe.title,
