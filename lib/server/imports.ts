@@ -307,8 +307,11 @@ function repairRecipeToken(token: string) {
   }
 
   const allowedDistance = candidate.length >= 8 ? 3 : candidate.length >= 5 ? 2 : 1;
-  const normalized = bestDistance <= allowedDistance ? bestMatch : candidate;
-  return `${prefix}${restoreNordicWordSafe(restoreNordicWord(normalized))}${suffix}`;
+  if (bestDistance <= allowedDistance) {
+    return `${prefix}${restoreNordicWordSafe(restoreNordicWord(bestMatch))}${suffix}`;
+  }
+
+  return `${prefix}${restoreNordicWordSafe(core)}${suffix}`;
 }
 
 function repairRecipeText(line: string) {
@@ -968,7 +971,14 @@ export function mapRecipeFromText(rawText: string): ParsedRecipePreview {
       ? lines.slice(isMethodHeading(lines[stepIndex]) ? stepIndex + 1 : stepIndex, findNextSectionIndex(lines, stepIndex + 1))
       : lines
           .slice(lastIngredientIndex >= 0 ? lastIngredientIndex + 1 : titleIndex + 1)
-          .filter((line) => !isLikelyNoiseLine(line) && (isStepStart(line) || looksLikeMethodLine(line) || looksLikeInstruction(line)));
+          .filter(
+            (line) =>
+              !isLikelyNoiseLine(line) &&
+              !isIngredientHeading(line) &&
+              !isAmountHeading(line) &&
+              !isMetadataHeading(line) &&
+              !isPageBreakLine(line),
+          );
 
   const ingredients = parseIngredientLines(fallbackSourceIngredientLines);
   const steps = parseStepLines(stepLines);

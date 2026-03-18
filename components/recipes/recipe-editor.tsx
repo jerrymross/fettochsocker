@@ -343,25 +343,40 @@ export function RecipeEditor({
 
         <div className="space-y-4">
           {stepFields.fields.map((field, index) => (
-            <div key={field.id} className="flex gap-3 rounded-[22px] border border-slate-200 p-4">
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 font-sans text-sm font-semibold text-slate-900">
-                {index + 1}
+            <div key={field.id} className="space-y-3">
+              <div className="flex gap-3 rounded-[22px] border border-slate-200 p-4">
+                <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 font-sans text-sm font-semibold text-slate-900">
+                  {index + 1}
+                </div>
+                <div className="flex-1 space-y-2">
+                  <textarea
+                    className={textareaClass}
+                    placeholder={dictionary.recipeEditor.describeStep}
+                    {...form.register(`steps.${index}.instruction`)}
+                  />
+                </div>
+                <button
+                  className={`${secondaryButtonClass} h-11 px-3`}
+                  disabled={stepFields.fields.length === 1}
+                  onClick={() => stepFields.remove(index)}
+                  type="button"
+                >
+                  <Trash2 className="size-4" />
+                </button>
               </div>
-              <div className="flex-1 space-y-2">
-                <textarea
-                  className={textareaClass}
-                  placeholder={dictionary.recipeEditor.describeStep}
-                  {...form.register(`steps.${index}.instruction`)}
-                />
-              </div>
-              <button
-                className={`${secondaryButtonClass} h-11 px-3`}
-                disabled={stepFields.fields.length === 1}
-                onClick={() => stepFields.remove(index)}
-                type="button"
-              >
-                <Trash2 className="size-4" />
-              </button>
+
+              {index < stepFields.fields.length - 1 ? (
+                <div className="flex justify-center">
+                  <button
+                    className={`${secondaryButtonClass} px-4 py-2 text-sm`}
+                    onClick={() => stepFields.insert(index + 1, { instruction: "" })}
+                    type="button"
+                  >
+                    <Plus className="mr-2 size-4" />
+                    {dictionary.recipeEditor.insertStepBelow}
+                  </button>
+                </div>
+              ) : null}
             </div>
           ))}
         </div>
