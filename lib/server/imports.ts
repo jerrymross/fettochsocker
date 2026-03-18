@@ -44,15 +44,11 @@ const methodVerbHints = [
   "vispa",
   "blanda",
   "ror",
-  "rör",
   "smalt",
-  "smält",
   "baka",
   "sjud",
   "varm",
-  "värm",
   "tillsatt",
-  "tillsätt",
   "mixa",
   "boil",
   "whisk",
@@ -78,9 +74,13 @@ const recipeWordReplacements: Array<[RegExp, string]> = [
   [/\bganache\s+\d{1,2}\b/gi, "ganache"],
   [/\bkaffegr[a-z\u00e5\u00e4\u00f6]{2,8}\b/gi, "kaffegradde"],
   [/\bgr[a-z\u00e5\u00e4\u00f6]{2,6}dde\b/gi, "gradde"],
+  [/\baggen\b/gi, "aggen"],
+  [/\bagg\b/gi, "agg"],
   [/\b(?:f|ph)?l?[o0]r?socker\b/gi, "florsocker"],
   [/\b(?:g[il1]y?[kmu][o0]s|glukos)\b/gi, "glykos"],
   [/\b(?:smor|smon|spon|smoor)\b\.?/gi, "smor"],
+  [/\bhall\b/gi, "hall"],
+  [/\bvand\b/gi, "vand"],
   [/\b(?:kaf+egr[ae]dde)\b/gi, "kaffegradde"],
   [/\bsv[a-z]{3,6}\b(?=.*koka)/gi, "gradde"],
   [/\bgimus\b/gi, "glykos"],
@@ -99,6 +99,8 @@ const commonRecipeTerms = [
   "socker",
   "glykos",
   "choklad",
+  "aggen",
+  "agg",
   "mjolk",
   "vanilj",
   "kakao",
@@ -108,8 +110,10 @@ const commonRecipeTerms = [
   "smalt",
   "ror",
   "tillsatt",
+  "hall",
+  "vand",
 ];
-const extraMethodVerbHints = ["sikta", "rora", "hall", "lat"];
+const extraMethodVerbHints = ["sikta", "rora", "hall", "lat", "vand"];
 const ingredientNameHints = [
   "mjol",
   "vetemjol",
@@ -149,7 +153,7 @@ function sanitizeIngredientName(name: string) {
   const normalized = repairRecipeText(
     extractIngredientName(name)
       .replace(/\b[il1]\b/gi, " ")
-      .replace(/\b[a-z]{1,2}\b(?=\s+(kaffegrädde|grädde|smör|florsocker|strösocker|socker|glykos|choklad)\b)/gi, " ")
+      .replace(/\b[a-z]{1,2}\b(?=\s+(kaffegradde|gradde|smor|florsocker|strosocker|socker|glykos|choklad)\b)/gi, " ")
       .replace(/\s+/g, " ")
       .trim(),
   );
@@ -265,6 +269,24 @@ function restoreNordicWord(value: string) {
     .replace(/smalt/gi, "smält");
 }
 
+function restoreNordicWordSafe(value: string) {
+  return value
+    .replace(/gradde/gi, "grädde")
+    .replace(/mjol/gi, "mjöl")
+    .replace(/smor/gi, "smör")
+    .replace(/vaniljkram/gi, "vaniljkräm")
+    .replace(/smorkram/gi, "smörkräm")
+    .replace(/strosocker/gi, "strösocker")
+    .replace(/mjolk/gi, "mjölk")
+    .replace(/tillsatt/gi, "tillsätt")
+    .replace(/ror/gi, "rör")
+    .replace(/smalt/gi, "smält")
+    .replace(/aggen/gi, "äggen")
+    .replace(/agg/gi, "ägg")
+    .replace(/hall/gi, "häll")
+    .replace(/vand/gi, "vänd");
+}
+
 function repairRecipeToken(token: string) {
   const prefix = token.match(/^[^A-Za-z\u00c5\u00c4\u00d6\u00e5\u00e4\u00f6]*/u)?.[0] ?? "";
   const suffix = token.match(/[^A-Za-z\u00c5\u00c4\u00d6\u00e5\u00e4\u00f60-9.]*$/u)?.[0] ?? "";
@@ -296,7 +318,7 @@ function repairRecipeToken(token: string) {
 
   const allowedDistance = candidate.length >= 8 ? 3 : candidate.length >= 5 ? 2 : 1;
   const normalized = bestDistance <= allowedDistance ? bestMatch : candidate;
-  return `${prefix}${restoreNordicWord(normalized)}${suffix}`;
+  return `${prefix}${restoreNordicWordSafe(restoreNordicWord(normalized))}${suffix}`;
 }
 
 function repairRecipeText(line: string) {
@@ -445,7 +467,7 @@ function sanitizeInstruction(line: string) {
   return repairRecipeText(
     normalizeLine(line)
       .replace(/^[=\-*>:.\s]+/, "")
-      .replace(/^[A-Za-z]\s+(?=(koka|blanda|vispa|smält|smalt|rör|ror|tillsätt|tillsatt)\b)/i, "")
+      .replace(/^[A-Za-z]\s+(?=(koka|blanda|vispa|smält|smalt|rör|ror|tillsätt|tillsatt|häll|hall|vänd|vand)\b)/i, "")
       .replace(/\s*[=:]+$/g, "")
       .replace(/\s+/g, " ")
       .trim(),
