@@ -1,13 +1,11 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
-import { prisma } from "@/lib/prisma";
 import { getDictionary, getModuleMeta } from "@/lib/i18n";
 import { getLocale } from "@/lib/server/locale";
 import { getEnabledModules } from "@/lib/server/modules";
-import { countRecipes, listRecentRecipes } from "@/lib/server/recipes";
+import { listRecentRecipes } from "@/lib/server/recipes";
 import { requireSession } from "@/lib/server/session";
 import { PageHeader } from "@/components/dashboard/page-header";
-import { StatCard } from "@/components/dashboard/stat-card";
 import { panelClass, primaryButtonClass, secondaryButtonClass } from "@/lib/ui";
 
 export default async function DashboardPage() {
@@ -16,10 +14,7 @@ export default async function DashboardPage() {
   const [locale, session] = await Promise.all([localePromise, sessionPromise]);
   const dictionary = getDictionary(locale);
   const moduleMeta = getModuleMeta(locale);
-  const [recipeCount, importCount, exportCount, enabledModules, recentRecipes] = await Promise.all([
-    countRecipes(session.userId, session.role),
-    prisma.importJob.count(),
-    prisma.exportJob.count(),
+  const [enabledModules, recentRecipes] = await Promise.all([
     getEnabledModules(locale),
     listRecentRecipes(session.userId, session.role),
   ]);
@@ -41,12 +36,6 @@ export default async function DashboardPage() {
         eyebrow={dictionary.dashboardPage.eyebrow}
         title={dictionary.dashboardPage.title}
       />
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard caption={dictionary.dashboardPage.recipesCaption} label={dictionary.common.recipes} value={String(recipeCount)} />
-        <StatCard caption={dictionary.dashboardPage.importsCaption} label={dictionary.common.import} value={String(importCount)} />
-        <StatCard caption={dictionary.dashboardPage.exportsCaption} label={dictionary.common.export} value={String(exportCount)} />
-      </div>
 
       <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
         <div className={`${panelClass} space-y-4`}>
