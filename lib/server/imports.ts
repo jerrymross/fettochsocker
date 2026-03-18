@@ -163,11 +163,13 @@ function sanitizeIngredientName(name: string) {
     return "Choklad";
   }
 
-  return normalized
-    .replace(/\bfe\b$/i, "")
-    .replace(/\b(?:od|ool)\b$/i, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  return capitalizeLeadingLetter(
+    normalized
+      .replace(/\bfe\b$/i, "")
+      .replace(/\b(?:od|ool)\b$/i, "")
+      .replace(/\s+/g, " ")
+      .trim(),
+  );
 }
 
 function cleanupOcrLineArtifacts(line: string) {
@@ -331,6 +333,22 @@ function toDisplayTitle(value: string) {
     .trim();
 }
 
+function capitalizeLeadingLetter(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return "";
+  }
+
+  const match = trimmed.match(/[A-Za-z\u00c5\u00c4\u00d6\u00e5\u00e4\u00f6]/u);
+  if (!match || match.index === undefined) {
+    return trimmed;
+  }
+
+  const index = match.index;
+  return `${trimmed.slice(0, index)}${trimmed.charAt(index).toUpperCase()}${trimmed.slice(index + 1)}`;
+}
+
 function sanitizeTitle(line: string) {
   return toDisplayTitle(
     repairRecipeText(line)
@@ -457,13 +475,15 @@ function looksLikeInstruction(line: string) {
 }
 
 function sanitizeInstruction(line: string) {
-  return repairRecipeText(
-    normalizeLine(line)
-      .replace(/^[=\-*>:.\s]+/, "")
-      .replace(/^[A-Za-z]\s+(?=(koka|blanda|vispa|smält|smalt|rör|ror|tillsätt|tillsatt|häll|hall|vänd|vand|sätt|satt|förvärm|forvarm|grädda|gradda)\b)/i, "")
-      .replace(/\s*[=:]+$/g, "")
-      .replace(/\s+/g, " ")
-      .trim(),
+  return capitalizeLeadingLetter(
+    repairRecipeText(
+      normalizeLine(line)
+        .replace(/^[=\-*>:.\s]+/, "")
+        .replace(/^[A-Za-z]\s+(?=(koka|blanda|vispa|smält|smalt|rör|ror|tillsätt|tillsatt|häll|hall|vänd|vand|sätt|satt|förvärm|forvarm|grädda|gradda)\b)/i, "")
+        .replace(/\s*[=:]+$/g, "")
+        .replace(/\s+/g, " ")
+        .trim(),
+    ),
   );
 }
 
@@ -982,7 +1002,7 @@ export function mapRecipeFromText(rawText: string): ParsedRecipePreview {
 
   const ingredients = parseIngredientLines(fallbackSourceIngredientLines);
   const steps = parseStepLines(stepLines);
-  const description = descriptionLines.join(" ") || "Imported from source document.";
+  const description = capitalizeLeadingLetter(descriptionLines.join(" ")) || "Imported from source document.";
   const safeIngredients = ingredients.length > 0 ? ingredients : [{ name: "Ingredient", quantity: 1, unit: IngredientUnit.G }];
   const safeSteps = steps.length > 0 ? steps : [{ instruction: "Review and complete the imported procedure." }];
 
