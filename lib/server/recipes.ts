@@ -203,7 +203,7 @@ export async function removeRecipe(recipeId: string) {
 }
 
 function totalWeightFromInput(input: RecipeInput) {
-  return input.ingredients.reduce((sum, item) => sum + (convertToWeightGrams(item.quantity, item.unit, item.name) ?? 0), 0);
+  return input.ingredients.reduce((sum, item) => sum + (convertToWeightGrams(item.quantity, item.unit) ?? 0), 0);
 }
 
 async function resolveIngredientIds(input: RecipeInput) {

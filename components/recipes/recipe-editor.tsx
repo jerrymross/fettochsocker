@@ -78,12 +78,10 @@ export function RecipeEditor({
     name: "isPublic",
   }) ?? true;
   const totalWeight = watchedIngredients.reduce(
-    (sum, item) => sum + (convertToWeightGrams(Number(item?.quantity) || 0, item?.unit ?? IngredientUnit.G, item?.name ?? "") ?? 0),
+    (sum, item) => sum + (convertToWeightGrams(Number(item?.quantity) || 0, item?.unit ?? IngredientUnit.G) ?? 0),
     0,
   );
-  const hasNonWeightUnits = watchedIngredients.some(
-    (item) => item?.unit && convertToWeightGrams(1, item.unit, item?.name ?? "") === null,
-  );
+  const hasNonWeightUnits = watchedIngredients.some((item) => item?.unit && !convertToWeightGrams(1, item.unit));
 
   function toggleCategory(categoryId: string) {
     const nextCategoryIds = selectedCategoryIds.includes(categoryId)
