@@ -116,7 +116,7 @@ const commonRecipeTerms = [
   "hall",
   "vand",
 ];
-const extraMethodVerbHints = ["sikta", "rora", "hall", "lat", "vand", "satt", "forvarm", "gradda", "stek", "rosta", "pensla"];
+const extraMethodVerbHints = ["sikta", "rora", "hall", "lat", "vand", "satt", "forvarm", "gradda", "stek", "rosta", "pensla", "skar", "kor", "kavla"];
 const ingredientNameHints = [
   "mjol",
   "vetemjol",
@@ -478,14 +478,11 @@ function looksLikeInstruction(line: string) {
 
 function sanitizeInstruction(line: string) {
   return capitalizeLeadingLetter(
-    repairRecipeText(
-      normalizeLine(line)
-        .replace(/^[=\-*>:.\s]+/, "")
-        .replace(/^[A-Za-z]\s+(?=(koka|blanda|vispa|smält|smalt|rör|ror|tillsätt|tillsatt|häll|hall|vänd|vand|sätt|satt|förvärm|forvarm|grädda|gradda)\b)/i, "")
-        .replace(/\s*[=:]+$/g, "")
-        .replace(/\s+/g, " ")
-        .trim(),
-    ),
+    normalizeLine(line)
+      .replace(/^[=\-*>:.\s]+/, "")
+      .replace(/\s*[=:]+$/g, "")
+      .replace(/\s+/g, " ")
+      .trim(),
   );
 }
 
@@ -766,6 +763,16 @@ function shouldStartNewStep(currentStep: string | null, line: string) {
   return startsWithMethodVerb(line) || looksLikeTemperatureOrOvenInstruction(line);
 }
 
+function looksLikeStepContinuation(line: string) {
+  const normalized = normalizeLine(line);
+
+  if (!normalized) {
+    return false;
+  }
+
+  return /^[a-z\u00e5\u00e4\u00f6(]/u.test(normalized) && !startsWithMethodVerb(normalized) && !looksLikeTemperatureOrOvenInstruction(normalized);
+}
+
 function parseIngredientLines(lines: string[]) {
   const ingredients: ParsedRecipePreview["ingredients"] = [];
   let pendingName: string | null = null;
@@ -888,20 +895,19 @@ function parseStepLines(lines: string[]) {
       continue;
     }
 
-    if (currentStep && shouldStartNewStep(currentStep, line)) {
-      steps.push({ instruction: sanitizeInstruction(currentStep) });
+    if (!currentStep) {
       currentStep = line;
-      continue;
-    }
-
-    if (!currentStep && !looksLikeMethodLine(line) && !looksLikeInstruction(line)) {
       continue;
     }
 
     if (currentStep) {
+      if (shouldStartNewStep(currentStep, line) || !looksLikeStepContinuation(line)) {
+        steps.push({ instruction: sanitizeInstruction(currentStep) });
+        currentStep = line;
+        continue;
+      }
+
       currentStep = `${currentStep} ${line}`.trim();
-    } else {
-      currentStep = line;
     }
   }
 
@@ -998,19 +1004,37 @@ export function mapRecipeFromText(rawText: string): ParsedRecipePreview {
     fallbackSourceIngredientLines.length > 0
       ? lines.findIndex((line) => line === fallbackSourceIngredientLines[fallbackSourceIngredientLines.length - 1])
       : -1;
-  const stepLines =
-    stepIndex >= 0
-      ? lines.slice(isMethodHeading(lines[stepIndex]) ? stepIndex + 1 : stepIndex, findNextSectionIndex(lines, stepIndex + 1))
-      : lines
-          .slice(lastIngredientIndex >= 0 ? lastIngredientIndex + 1 : titleIndex + 1)
-          .filter(
-            (line) =>
-              !isLikelyNoiseLine(line) &&
-              !isIngredientHeading(line) &&
-              !isAmountHeading(line) &&
-              !isMetadataHeading(line) &&
-              !isPageBreakLine(line),
-          );
+  const lastSourceIngredientIndex =
+    fallbackSourceIngredientLines.length > 0
+      ? sourceLines.findIndex((line) => line === fallbackSourceIngredientLines[fallbackSourceIngredientLines.length - 1])
+      : -1;
+  const sourceStepStartIndex =
+    lastSourceIngredientIndex >= 0 ? lastSourceIngredientIndex + 1 : sourceStepIndex >= 0 ? sourceStepIndex : sourceTitleIndex + 1;
+  const normalizedStepStartIndex =
+    lastIngredientIndex >= 0 ? lastIngredientIndex + 1 : stepIndex >= 0 ? stepIndex : titleIndex + 1;
+  const sourceStepLines =
+    sourceLines
+      .slice(sourceStepStartIndex, findNextSectionIndex(sourceLines, sourceStepStartIndex + 1))
+      .filter(
+        (line) =>
+          !isLikelyNoiseLine(line) &&
+          !isIngredientHeading(line) &&
+          !isAmountHeading(line) &&
+          !isMetadataHeading(line) &&
+          !isPageBreakLine(line),
+      );
+  const normalizedStepLines =
+    lines
+      .slice(normalizedStepStartIndex, findNextSectionIndex(lines, normalizedStepStartIndex + 1))
+      .filter(
+        (line) =>
+          !isLikelyNoiseLine(line) &&
+          !isIngredientHeading(line) &&
+          !isAmountHeading(line) &&
+          !isMetadataHeading(line) &&
+          !isPageBreakLine(line),
+      );
+  const stepLines = sourceStepLines.length > 0 ? sourceStepLines : normalizedStepLines;
 
   const parsedPrimaryIngredients = parseIngredientLines(fallbackSourceIngredientLines);
   const parsedSourceIngredients = parseIngredientLines(sourceIngredientCandidateLines);
