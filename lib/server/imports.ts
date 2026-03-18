@@ -85,6 +85,13 @@ const commonRecipeTerms = [
   "kaffegradde",
   "vispgradde",
   "gradde",
+  "gradda",
+  "ugn",
+  "ugnen",
+  "grad",
+  "grader",
+  "minut",
+  "minuter",
   "smor",
   "florsocker",
   "strosocker",
@@ -99,13 +106,15 @@ const commonRecipeTerms = [
   "koka",
   "blanda",
   "vispa",
+  "satt",
+  "forvarm",
   "smalt",
   "ror",
   "tillsatt",
   "hall",
   "vand",
 ];
-const extraMethodVerbHints = ["sikta", "rora", "hall", "lat", "vand"];
+const extraMethodVerbHints = ["sikta", "rora", "hall", "lat", "vand", "satt", "forvarm", "gradda", "stek", "rosta", "pensla"];
 const ingredientNameHints = [
   "mjol",
   "vetemjol",
@@ -233,11 +242,14 @@ function levenshteinDistance(left: string, right: string) {
 function restoreNordicWord(value: string) {
   return value
     .replace(/gradde/gi, "grädde")
+    .replace(/gradda/gi, "grädda")
     .replace(/mjol/gi, "mjöl")
     .replace(/smor/gi, "smör")
     .replace(/vaniljkram/gi, "vaniljkräm")
     .replace(/smorkram/gi, "smörkräm")
     .replace(/strosocker/gi, "strösocker")
+    .replace(/satt/gi, "sätt")
+    .replace(/forvarm/gi, "förvärm")
     .replace(/mjolk/gi, "mjölk")
     .replace(/tillsatt/gi, "tillsätt")
     .replace(/ror/gi, "rör")
@@ -247,11 +259,14 @@ function restoreNordicWord(value: string) {
 function restoreNordicWordSafe(value: string) {
   return value
     .replace(/gradde/gi, "grädde")
+    .replace(/gradda/gi, "grädda")
     .replace(/mjol/gi, "mjöl")
     .replace(/smor/gi, "smör")
     .replace(/vaniljkram/gi, "vaniljkräm")
     .replace(/smorkram/gi, "smörkräm")
     .replace(/strosocker/gi, "strösocker")
+    .replace(/satt/gi, "sätt")
+    .replace(/forvarm/gi, "förvärm")
     .replace(/mjolk/gi, "mjölk")
     .replace(/tillsatt/gi, "tillsätt")
     .replace(/ror/gi, "rör")
@@ -435,14 +450,14 @@ function looksLikeInstruction(line: string) {
     return false;
   }
 
-  return /[.!?]$/.test(normalized) || normalized.includes(",");
+  return /[.!?]$/.test(normalized) || normalized.includes(",") || startsWithMethodVerb(normalized) || looksLikeTemperatureOrOvenInstruction(normalized);
 }
 
 function sanitizeInstruction(line: string) {
   return repairRecipeText(
     normalizeLine(line)
       .replace(/^[=\-*>:.\s]+/, "")
-      .replace(/^[A-Za-z]\s+(?=(koka|blanda|vispa|smält|smalt|rör|ror|tillsätt|tillsatt|häll|hall|vänd|vand)\b)/i, "")
+      .replace(/^[A-Za-z]\s+(?=(koka|blanda|vispa|smält|smalt|rör|ror|tillsätt|tillsatt|häll|hall|vänd|vand|sätt|satt|förvärm|forvarm|grädda|gradda)\b)/i, "")
       .replace(/\s*[=:]+$/g, "")
       .replace(/\s+/g, " ")
       .trim(),
@@ -452,6 +467,25 @@ function sanitizeInstruction(line: string) {
 function containsIngredientHint(line: string) {
   const canonical = canonicalizeForMatch(line);
   return ingredientNameHints.some((hint) => canonical.includes(hint));
+}
+
+function looksLikeTemperatureOrOvenInstruction(line: string) {
+  const normalized = normalizeLine(line);
+  const canonical = canonicalizeForMatch(normalized);
+
+  if (!normalized) {
+    return false;
+  }
+
+  const startsWithOvenInstruction =
+    canonical.startsWith("sattugnen") ||
+    canonical.startsWith("forvarmugnen") ||
+    canonical.startsWith("varmugnen") ||
+    canonical.startsWith("graddaiugnen");
+  const hasOvenCue = canonical.includes("ugn") || canonical.includes("gradda") || canonical.includes("stek");
+  const hasTempCue = /\d{2,3}(?:grader|grad|c)|\d{1,3}(?:min|minuter|tim|timmar)/.test(canonical);
+
+  return startsWithOvenInstruction || (hasOvenCue && hasTempCue);
 }
 
 function startsWithMethodVerb(line: string) {
@@ -491,6 +525,10 @@ function looksLikeMethodLine(line: string) {
 
   if (!normalized || isLikelyNoiseLine(normalized)) {
     return false;
+  }
+
+  if (looksLikeTemperatureOrOvenInstruction(normalized)) {
+    return true;
   }
 
   if (looksLikeInstruction(normalized) || normalized.includes("=")) {
@@ -542,6 +580,10 @@ function isLikelyMethodTransition(lines: string[], index: number) {
 }
 
 function parseInlineIngredientLine(line: string) {
+  if (looksLikeTemperatureOrOvenInstruction(line)) {
+    return null;
+  }
+
   const amountFirstMatch = line.match(
     /^\s*[-*â€¢]?\s*(\d+(?:[.,]\d+)?(?:\s*-\s*\d+(?:[.,]\d+)?)?)\s*(kg|g|gr|gram|grams|ml|cl|dl|l|tsk|tsp|teaspoon|teaspoons|msk|tbsp|tablespoon|tablespoons|st|pcs|pc|stycken?)?\s+(.+)$/i,
   );
@@ -597,6 +639,10 @@ function looksLikeIngredientLine(line: string) {
     isStepStart(normalized) ||
     isBareStepNumber(normalized)
   ) {
+    return false;
+  }
+
+  if (looksLikeTemperatureOrOvenInstruction(normalized) || startsWithMethodVerb(normalized)) {
     return false;
   }
 
@@ -685,6 +731,14 @@ function findNextSectionIndex(lines: string[], startIndex: number) {
   }
 
   return lines.length;
+}
+
+function shouldStartNewStep(currentStep: string | null, line: string) {
+  if (!currentStep) {
+    return false;
+  }
+
+  return startsWithMethodVerb(line) || looksLikeTemperatureOrOvenInstruction(line);
 }
 
 function parseIngredientLines(lines: string[]) {
@@ -806,6 +860,12 @@ function parseStepLines(lines: string[]) {
     if (waitingForBareStepInstruction) {
       currentStep = line;
       waitingForBareStepInstruction = false;
+      continue;
+    }
+
+    if (currentStep && shouldStartNewStep(currentStep, line)) {
+      steps.push({ instruction: sanitizeInstruction(currentStep) });
+      currentStep = line;
       continue;
     }
 
