@@ -92,6 +92,8 @@ const commonRecipeTerms = [
   "grader",
   "minut",
   "minuter",
+  "kallt",
+  "kalla",
   "smor",
   "florsocker",
   "strosocker",
@@ -935,7 +937,6 @@ function detectFileKind(file: File): ImportFileKind {
 export function mapRecipeFromText(rawText: string): ParsedRecipePreview {
   const sourceLines = normalizeExtractedText(rawText)
     .split(/\r?\n/)
-    .map((line) => cleanupOcrLineArtifacts(line))
     .map(normalizeLine)
     .filter(Boolean);
   const lines = buildRecipeLines(rawText);
@@ -974,14 +975,25 @@ export function mapRecipeFromText(rawText: string): ParsedRecipePreview {
     stepIndex > ingredientIndex
       ? stepIndex
       : findNextSectionIndex(lines, ingredientIndex > -1 ? ingredientIndex + 1 : 1);
+  const inferredIngredientLines = inferIngredientLines(lines, titleIndex + 1, stepIndex >= 0 ? stepIndex : lines.length);
+  const inferredSourceIngredientLines = inferIngredientLines(
+    sourceLines,
+    sourceTitleIndex + 1,
+    sourceStepIndex >= 0 ? sourceStepIndex : sourceLines.length,
+  );
   const ingredientLines =
     ingredientIndex >= 0
       ? lines.slice(ingredientIndex + 1, ingredientSectionEnd)
-      : inferIngredientLines(lines, titleIndex + 1, stepIndex >= 0 ? stepIndex : lines.length);
+      : inferredIngredientLines;
   const fallbackSourceIngredientLines =
-    ingredientLines.length > 0
-      ? ingredientLines
-      : inferIngredientLines(sourceLines, sourceTitleIndex + 1, sourceStepIndex >= 0 ? sourceStepIndex : sourceLines.length);
+    inferredSourceIngredientLines.length > ingredientLines.length
+      ? inferredSourceIngredientLines
+      : ingredientLines.length > 0
+        ? ingredientLines
+        : inferredSourceIngredientLines;
+  const sourceIngredientCandidateLines = sourceLines
+    .slice(sourceTitleIndex + 1, sourceStepIndex >= 0 ? sourceStepIndex : sourceLines.length)
+    .filter((line) => !isLikelyNoiseLine(line) && (parseInlineIngredientLine(line) || looksLikeQuantityOnly(line)));
   const lastIngredientIndex =
     fallbackSourceIngredientLines.length > 0
       ? lines.findIndex((line) => line === fallbackSourceIngredientLines[fallbackSourceIngredientLines.length - 1])
@@ -1000,9 +1012,12 @@ export function mapRecipeFromText(rawText: string): ParsedRecipePreview {
               !isPageBreakLine(line),
           );
 
-  const ingredients = parseIngredientLines(fallbackSourceIngredientLines);
+  const parsedPrimaryIngredients = parseIngredientLines(fallbackSourceIngredientLines);
+  const parsedSourceIngredients = parseIngredientLines(sourceIngredientCandidateLines);
+  const ingredients =
+    parsedSourceIngredients.length > parsedPrimaryIngredients.length ? parsedSourceIngredients : parsedPrimaryIngredients;
   const steps = parseStepLines(stepLines);
-  const description = capitalizeLeadingLetter(descriptionLines.join(" ")) || "Imported from source document.";
+  const description = capitalizeLeadingLetter(descriptionLines.join(" "));
   const safeIngredients = ingredients.length > 0 ? ingredients : [{ name: "Ingredient", quantity: 1, unit: IngredientUnit.G }];
   const safeSteps = steps.length > 0 ? steps : [{ instruction: "Review and complete the imported procedure." }];
 
