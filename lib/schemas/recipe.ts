@@ -14,7 +14,7 @@ export const stepInputSchema = z.object({
 
 export const recipeInputSchema = z.object({
   title: z.string().trim().min(2).max(160),
-  description: z.string().trim().min(10).max(5000),
+  description: z.string().trim().max(5000).default(""),
   categoryIds: z.array(z.string().cuid()).max(20).default([]),
   isPublic: z.boolean().default(true),
   ingredients: z.array(ingredientInputSchema).min(1).max(100),
