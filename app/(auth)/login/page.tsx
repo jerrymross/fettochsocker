@@ -31,7 +31,7 @@ export default async function LoginPage() {
           </svg>
         </div>
         {/* Lime glow */}
-        <div className="pointer-events-none absolute -left-12 -top-12 size-72 rounded-full bg-[#98b694]/16 blur-3xl" />
+        <div className="pointer-events-none absolute -left-12 -top-12 size-72 rounded-full bg-[#F182EF]/16 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-16 right-0 size-52 rounded-full bg-[#f8afe5]/10 blur-3xl" />
 
         <div className="relative">
@@ -56,7 +56,7 @@ export default async function LoginPage() {
         <div className="relative grid gap-3 md:grid-cols-3">
           {dictionary.auth.loginBullets.map((item) => (
             <div key={item} className="rounded-[22px] border border-white/[0.08] bg-white/[0.05] p-4 text-sm leading-6 text-[#f7f2e8]/68 backdrop-blur-sm">
-              <span className="mb-2.5 inline-block h-0.5 w-6 rounded-full bg-[#98b694]" />
+              <span className="mb-2.5 inline-block h-0.5 w-6 rounded-full bg-[#F182EF]" />
               <p>{item}</p>
             </div>
           ))}
@@ -81,7 +81,7 @@ export default async function LoginPage() {
             />
           </div>
           <div className="mt-3 flex items-center gap-2.5 lg:mt-0">
-            <span className="hidden h-px w-5 bg-[#98b694] lg:block" />
+            <span className="hidden h-px w-5 bg-[#F182EF] lg:block" />
             <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-[#817869]">{dictionary.auth.loginEyebrow}</p>
           </div>
           <h2 className="mt-2 text-[2.2rem] font-semibold leading-[1.1] tracking-[-0.04em] text-[#181611]">{dictionary.auth.loginTitle}</h2>

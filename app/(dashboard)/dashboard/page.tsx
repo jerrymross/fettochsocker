@@ -52,7 +52,7 @@ export default async function DashboardPage() {
         <div className={`${panelClass} space-y-4`}>
           <div>
             <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#817869]">
-              <span className="inline-flex size-3.5 items-center justify-center rounded-full bg-[#98b694]">
+              <span className="inline-flex size-3.5 items-center justify-center rounded-full bg-[#F182EF]">
                 <span className="size-1 rounded-full bg-[#181611]" />
               </span>
               {dictionary.dashboardPage.enabledModulesEyebrow}
@@ -79,7 +79,7 @@ export default async function DashboardPage() {
         <div className={`${panelClass} flex flex-col gap-4 lg:max-h-[30rem]`}>
           <div>
             <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#817869]">
-              <span className="inline-flex size-3.5 items-center justify-center rounded-full bg-[#98b694]">
+              <span className="inline-flex size-3.5 items-center justify-center rounded-full bg-[#F182EF]">
                 <span className="size-1 rounded-full bg-[#181611]" />
               </span>
               {dictionary.dashboardPage.recentRecipesEyebrow}
@@ -115,7 +115,7 @@ export default async function DashboardPage() {
       <div className={`${panelClass} space-y-4`}>
         <div>
           <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#817869]">
-            <span className="inline-flex size-3.5 items-center justify-center rounded-full bg-[#98b694]">
+            <span className="inline-flex size-3.5 items-center justify-center rounded-full bg-[#F182EF]">
               <span className="size-1 rounded-full bg-[#181611]" />
             </span>
             {dictionary.dashboardPage.architectureEyebrow}

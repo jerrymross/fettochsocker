@@ -139,7 +139,7 @@ export function RecipeList({
             <button
               className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
                 selectedCategoryId === "ALL"
-                  ? "border-slate-950 bg-slate-950 text-white"
+                  ? "border-[#F182EF] bg-[#F182EF] text-white shadow-[0_4px_12px_-4px_rgba(241,130,239,0.40)]"
                   : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
               }`}
               onClick={() => setSelectedCategoryId("ALL")}

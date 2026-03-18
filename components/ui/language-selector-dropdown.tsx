@@ -69,7 +69,7 @@ export function Component({
               className={cn(
                 "flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors",
                 selected.code === language.code
-                  ? "font-semibold text-blue-600"
+                  ? "font-semibold text-[#c040be]"
                   : "text-slate-800 hover:bg-slate-100",
               )}
               onClick={() => {
@@ -80,7 +80,7 @@ export function Component({
             >
               <span>{language.flag}</span>
               <span className="flex-1">{language.label}</span>
-              {selected.code === language.code ? <Check className="h-4 w-4 text-blue-500" /> : null}
+              {selected.code === language.code ? <Check className="h-4 w-4 text-[#F182EF]" /> : null}
             </button>
           ))}
         </div>

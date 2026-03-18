@@ -5,7 +5,7 @@ export const panelClass =
   "border-b border-[#f3eee2] bg-white/92 px-6 py-5 sm:rounded-[24px] sm:border-b sm:shadow-[0_8px_32px_-8px_rgba(24,22,17,0.10),0_1px_3px_rgba(24,22,17,0.05)]";
 
 export const inputClass =
-  "w-full rounded-2xl border border-[#e9e0cb] bg-white px-4 py-3 text-sm text-[#181611] outline-none transition-all duration-200 placeholder:text-[#948a78] hover:border-[#d9ceb3] focus:border-[#98b694] focus:ring-4 focus:ring-[#98b694]/20";
+  "w-full rounded-2xl border border-[#e9e0cb] bg-white px-4 py-3 text-sm text-[#181611] outline-none transition-all duration-200 placeholder:text-[#948a78] hover:border-[#d9ceb3] focus:border-[#F182EF] focus:ring-4 focus:ring-[#F182EF]/18";
 
 export const textareaClass = `${inputClass} min-h-28 resize-y`;
 

@@ -13,7 +13,7 @@ export function PageHeader({
     <div className="flex flex-col gap-4 px-4 pb-2 sm:px-0 lg:flex-row lg:items-end lg:justify-between">
       <div>
         <p className="flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.26em] text-[#6e675c]">
-          <span className="inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-[#98b694]">
+          <span className="inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-[#F182EF]">
             <span className="size-1.5 rounded-full bg-[#181611]" />
           </span>
           {eyebrow}

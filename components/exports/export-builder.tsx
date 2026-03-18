@@ -76,7 +76,7 @@ export function ExportBuilder({ recipes }: { recipes: ExportableRecipe[] }) {
             return (
               <label
                 key={recipe.id}
-                className={`flex cursor-pointer items-start gap-4 rounded-[22px] border px-4 py-4 transition ${checked ? "border-slate-950 bg-slate-50" : "border-slate-200 bg-white"}`}
+                className={`flex cursor-pointer items-start gap-4 rounded-[22px] border px-4 py-4 transition ${checked ? "border-[#F182EF]/60 bg-[#F182EF]/6 shadow-[0_4px_12px_-4px_rgba(241,130,239,0.22)]" : "border-slate-200 bg-white"}`}
               >
                 <input checked={checked} onChange={() => toggleRecipe(recipe.id)} type="checkbox" />
                 <div className="space-y-1">

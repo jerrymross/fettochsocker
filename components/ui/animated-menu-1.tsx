@@ -92,7 +92,7 @@ export default function AnimatedMenuComponent({
           />
 
           <nav className="fixed left-0 top-0 z-50 flex h-[100dvh] w-[22rem] max-w-[92vw] flex-col overflow-hidden border-r border-[#ece4d1] bg-[#fcfcfb] text-[#181611] shadow-[0_40px_90px_-36px_rgba(24,22,17,0.18)]">
-            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#98b694] via-[#98b694]/60 to-transparent" />
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#F182EF] via-[#F182EF]/60 to-transparent" />
 
             <div className="relative flex h-full min-h-0 flex-col px-4 pb-3 pt-14">
               <button
@@ -127,7 +127,7 @@ export default function AnimatedMenuComponent({
                         className={cn(
                           "group flex items-center gap-3 rounded-2xl px-3 py-2 text-sm font-medium transition-all duration-150",
                           item.active
-                            ? "bg-[#98b694] !text-[#181611] shadow-[0_8px_20px_-8px_rgba(152,182,148,0.35)]"
+                            ? "bg-[#F182EF]/18 !text-[#181611] shadow-[0_8px_20px_-8px_rgba(241,130,239,0.30)] ring-1 ring-[#F182EF]/40"
                             : "text-[#6e675c] hover:bg-[#f3e7c3]/30 hover:text-[#181611]",
                         )}
                         href={item.href}
@@ -140,13 +140,13 @@ export default function AnimatedMenuComponent({
                           className={cn(
                             "inline-flex size-9 shrink-0 items-center justify-center rounded-2xl transition-all",
                             item.active
-                              ? "bg-[#181611] text-[#fcfcfb]"
+                              ? "bg-[#F182EF] text-white"
                               : "bg-[#f5f0e3] text-[#817869] group-hover:bg-[#f8afe5]/25 group-hover:text-[#181611]",
                           )}
                         >
                           <item.icon className="size-4.5" />
                         </span>
-                        <span className={cn("truncate", item.active && "font-semibold text-[#181611]")}>{item.label}</span>
+                        <span className={cn("truncate", item.active && "font-semibold text-[#2a0d29]")}>{item.label}</span>
                       </Link>
                     </li>
                   ))}
