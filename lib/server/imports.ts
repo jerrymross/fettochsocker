@@ -13,15 +13,7 @@ type ParsedRecipePreview = {
   rawText: string;
 };
 
-type UnstructuredElement = {
-  text?: string;
-};
-
-type ImportFileKind = "txt" | "docx" | "pdf" | "image" | "unknown";
-
-const supportedImageMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
-const supportedImageExtensions = [".jpg", ".jpeg", ".png", ".webp"];
-const imageOcrTimeoutMs = 45_000;
+type ImportFileKind = "txt" | "docx" | "pdf" | "unknown";
 
 const ingredientHeadings = new Set(["ingredient", "ingredients", "ingrediens", "ingredienser"]);
 const methodHeadings = new Set([
@@ -190,23 +182,6 @@ function normalizeExtractedText(rawText: string) {
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
-}
-
-async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string) {
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<T>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
-      }),
-    ]);
-  } finally {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
-  }
 }
 
 function canonicalizeForMatch(line: string) {
@@ -712,75 +687,6 @@ function findNextSectionIndex(lines: string[], startIndex: number) {
   return lines.length;
 }
 
-function formatIngredientUnit(unit: IngredientUnit) {
-  switch (unit) {
-    case IngredientUnit.KG:
-      return "kg";
-    case IngredientUnit.ML:
-      return "ml";
-    case IngredientUnit.CL:
-      return "cl";
-    case IngredientUnit.DL:
-      return "dl";
-    case IngredientUnit.L:
-      return "l";
-    case IngredientUnit.TSP:
-      return "tsk";
-    case IngredientUnit.TBSP:
-      return "msk";
-    case IngredientUnit.PCS:
-      return "st";
-    case IngredientUnit.G:
-    default:
-      return "g";
-  }
-}
-
-function buildReadableSourceText(recipe: Omit<ParsedRecipePreview, "rawText">) {
-  const sections: string[] = [recipe.title];
-
-  if (recipe.description && recipe.description !== "Imported from source document.") {
-    sections.push(recipe.description);
-  }
-
-  if (recipe.ingredients.length > 0) {
-    sections.push("Ingredienser");
-    sections.push(
-      ...recipe.ingredients.map((ingredient) =>
-        `${ingredient.quantity} ${formatIngredientUnit(ingredient.unit)} ${ingredient.name}${ingredient.note ? `, ${ingredient.note}` : ""}`.trim(),
-      ),
-    );
-  }
-
-  if (recipe.steps.length > 0) {
-    sections.push("Metod");
-    sections.push(...recipe.steps.map((step, index) => `${index + 1}. ${step.instruction}`));
-  }
-
-  return sections.join("\n");
-}
-
-function isImageImportSource(input: { sourceFileName: string; mimeType?: string }) {
-  const fileName = input.sourceFileName.toLowerCase();
-  const mimeType = (input.mimeType || "").toLowerCase();
-  return mimeType.startsWith("image/") || supportedImageExtensions.some((extension) => fileName.endsWith(extension));
-}
-
-function isUnreadableImageRecipe(recipe: Omit<ParsedRecipePreview, "rawText">) {
-  const titleLetters = (recipe.title.match(/[A-Za-z\u00c5\u00c4\u00d6\u00e5\u00e4\u00f6]/g) ?? []).length;
-  const suspiciousTitle = titleLetters < 5 || /^[^A-Za-z\u00c5\u00c4\u00d6\u00e5\u00e4\u00f6-]*-/.test(recipe.title);
-  const genericIngredient =
-    recipe.ingredients.length === 1 &&
-    recipe.ingredients[0].quantity <= 5 &&
-    /^(ingredient|ganache|ka|fae)$/i.test(recipe.ingredients[0].name);
-  const fragmentedStepTokens = recipe.steps.reduce(
-    (count, step) => count + ((step.instruction.match(/\b[A-Za-z\u00c5\u00c4\u00d6\u00e5\u00e4\u00f6]{1,2}\b/g) ?? []).length),
-    0,
-  );
-
-  return (suspiciousTitle && genericIngredient) || (recipe.ingredients.length <= 1 && fragmentedStepTokens >= 5);
-}
-
 function parseIngredientLines(lines: string[]) {
   const ingredients: ParsedRecipePreview["ingredients"] = [];
   let pendingName: string | null = null;
@@ -940,13 +846,6 @@ function detectFileKind(file: File): ImportFileKind {
     return "pdf";
   }
 
-  if (
-    supportedImageMimeTypes.has(mimeType) ||
-    supportedImageExtensions.some((extension) => fileName.endsWith(extension))
-  ) {
-    return "image";
-  }
-
   return "unknown";
 }
 
@@ -1016,14 +915,6 @@ export function mapRecipeFromText(rawText: string): ParsedRecipePreview {
   const description = descriptionLines.join(" ") || "Imported from source document.";
   const safeIngredients = ingredients.length > 0 ? ingredients : [{ name: "Ingredient", quantity: 1, unit: IngredientUnit.G }];
   const safeSteps = steps.length > 0 ? steps : [{ instruction: "Review and complete the imported procedure." }];
-  const readableSourceText = buildReadableSourceText({
-    title,
-    description,
-    categoryIds: [],
-    isPublic: false,
-    ingredients: safeIngredients,
-    steps: safeSteps,
-  });
 
   return {
     title,
@@ -1032,40 +923,8 @@ export function mapRecipeFromText(rawText: string): ParsedRecipePreview {
     isPublic: false,
     ingredients: safeIngredients,
     steps: safeSteps,
-    rawText: readableSourceText,
+    rawText,
   };
-}
-
-async function parseWithUnstructured(file: File) {
-  const apiUrl = process.env.UNSTRUCTURED_API_URL;
-  const apiKey = process.env.UNSTRUCTURED_API_KEY;
-
-  if (!apiUrl || !apiKey) {
-    throw new Error("Unstructured is not configured.");
-  }
-
-  const formData = new FormData();
-  formData.set("files", file, file.name);
-
-  const response = await fetch(apiUrl, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const message = await response.text();
-    throw new Error(`Unstructured parsing failed: ${message}`);
-  }
-
-  const payload = (await response.json()) as UnstructuredElement[];
-  return payload
-    .map((element) => element.text?.trim())
-    .filter(Boolean)
-    .join("\n");
 }
 
 async function parseLocally(file: File) {
@@ -1116,53 +975,15 @@ async function parseLocally(file: File) {
     return rawText;
   }
 
-  if (fileKind === "image") {
-    const tesseractModule = await import("tesseract.js");
-    const recognize = tesseractModule.default.recognize;
-    const buffer = Buffer.from(await file.arrayBuffer());
-
-    try {
-      const result = await withTimeout(
-        recognize(buffer, "swe+eng"),
-        imageOcrTimeoutMs,
-        "Photo import timed out. Try cropping the photo tighter around the recipe.",
-      );
-      return result.data.text.trim();
-    } catch (error) {
-      console.warn("Image OCR with swe+eng failed, retrying with eng.", error);
-      const fallbackResult = await withTimeout(
-        recognize(buffer, "eng"),
-        imageOcrTimeoutMs,
-        "Photo import timed out. Try cropping the photo tighter around the recipe.",
-      );
-      return fallbackResult.data.text.trim();
-    }
-  }
-
   throw new Error("Unsupported file type.");
 }
 
 async function parseFileToText(file: File) {
-  const apiUrl = process.env.UNSTRUCTURED_API_URL;
-  const apiKey = process.env.UNSTRUCTURED_API_KEY;
-
-  if (apiUrl && apiKey) {
-    try {
-      return normalizeExtractedText(await parseWithUnstructured(file));
-    } catch (error) {
-      console.warn("Unstructured parsing failed, falling back to local parser.", error);
-    }
-  }
-
-  const rawText = normalizeExtractedText(await parseLocally(file));
+  const rawText = await parseLocally(file);
 
   if (!rawText.trim()) {
-    if (detectFileKind(file) === "image") {
-      throw new Error("No readable text was found in the photo. Try a sharper image with better contrast.");
-    }
-
     if (detectFileKind(file) === "pdf") {
-      throw new Error("The PDF could not be parsed locally. If it is scanned, configure Unstructured OCR support.");
+      throw new Error("The PDF could not be parsed locally. Scanned PDFs are not supported.");
     }
 
     throw new Error("No readable text could be extracted from the uploaded file.");
@@ -1188,17 +1009,13 @@ export async function createImportPreviewFromText(
     mimeType?: string;
   },
 ) {
-  const rawText = normalizeExtractedText(input.rawText);
+  const rawText = input.rawText;
 
   if (!rawText.trim()) {
     throw new Error("No readable text could be extracted from the uploaded file.");
   }
 
   const mapped = mapRecipeFromText(rawText);
-
-  if (isImageImportSource(input) && isUnreadableImageRecipe(mapped)) {
-    throw new Error("Fotot gick inte att tolka säkert. Beskär närmare receptet och ta en ny bild rakt ovanifrån.");
-  }
 
   const importJob = await prisma.importJob.create({
     data: {

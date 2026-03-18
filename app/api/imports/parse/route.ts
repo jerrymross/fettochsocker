@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { allowedImportMimeTypes } from "@/lib/schemas/imports";
-import { createImportPreview, createImportPreviewFromText } from "@/lib/server/imports";
+import { createImportPreview } from "@/lib/server/imports";
 import { isModuleEnabled } from "@/lib/server/modules";
 import { getSession } from "@/lib/server/session";
 
@@ -17,19 +17,7 @@ export async function POST(request: Request) {
     }
 
     const formData = await request.formData();
-    const rawText = formData.get("rawText");
-    const sourceFileName = formData.get("sourceFileName");
-    const mimeType = formData.get("mimeType");
     const file = formData.get("file");
-
-    if (typeof rawText === "string" && rawText.trim()) {
-      const preview = await createImportPreviewFromText(session.userId, {
-        mimeType: typeof mimeType === "string" ? mimeType : "text/plain",
-        rawText,
-        sourceFileName: typeof sourceFileName === "string" && sourceFileName.trim() ? sourceFileName : "photo-import.txt",
-      });
-      return NextResponse.json(preview);
-    }
 
     if (!(file instanceof File)) {
       return NextResponse.json({ error: "No file uploaded." }, { status: 400 });

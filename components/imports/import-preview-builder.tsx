@@ -2,11 +2,11 @@
 
 import dynamic from "next/dynamic";
 import { useState, useTransition } from "react";
-import { Camera, FileText, UploadCloud } from "lucide-react";
+import { FileText, UploadCloud } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
 import type { RecipeCategoryOption } from "@/lib/recipe-categories";
 import type { EditableRecipe } from "@/lib/types";
-import { panelClass, primaryButtonClass, secondaryButtonClass } from "@/lib/ui";
+import { panelClass, primaryButtonClass } from "@/lib/ui";
 
 type ImportResponse = {
   importId: string;
@@ -20,12 +20,6 @@ const RecipeEditor = dynamic(
   },
 );
 
-const imageUploadTimeoutMs = 45_000;
-
-function isImageFile(file: File) {
-  return file.type.startsWith("image/");
-}
-
 export function ImportPreviewBuilder({
   availableCategories,
   canManageVisibility = false,
@@ -36,7 +30,6 @@ export function ImportPreviewBuilder({
   const { dictionary } = useLanguage();
   const [preview, setPreview] = useState<ImportResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isPreparingPhoto, setIsPreparingPhoto] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   function handleUpload(event: React.ChangeEvent<HTMLInputElement>) {
@@ -49,30 +42,13 @@ export function ImportPreviewBuilder({
     setError(null);
 
     startTransition(async () => {
-      const controller = new AbortController();
-      const timeoutId = window.setTimeout(() => controller.abort(), imageUploadTimeoutMs);
-
       try {
         const formData = new FormData();
-
-        if (isImageFile(file)) {
-          const { extractPhotoText } = await import("@/lib/client/photo-ocr");
-          const rawText = await extractPhotoText(file, {
-            timeoutMs: imageUploadTimeoutMs,
-            timeoutMessage: dictionary.importBuilder.parseTimedOut,
-          });
-
-          formData.set("rawText", rawText);
-          formData.set("sourceFileName", file.name);
-          formData.set("mimeType", file.type || "image/jpeg");
-        } else {
-          formData.set("file", file);
-        }
+        formData.set("file", file);
 
         const response = await fetch("/api/imports/parse", {
           method: "POST",
           body: formData,
-          signal: controller.signal,
         });
 
         const payload = (await response.json()) as ImportResponse & { error?: string };
@@ -84,34 +60,13 @@ export function ImportPreviewBuilder({
 
         setPreview(payload);
       } catch (currentError) {
-        if ((currentError as Error).name === "AbortError") {
-          setError(dictionary.importBuilder.parseTimedOut);
-        } else {
-          setError(currentError instanceof Error ? currentError.message : dictionary.importBuilder.parseFailed);
-        }
+        setError(currentError instanceof Error ? currentError.message : dictionary.importBuilder.parseFailed);
       } finally {
-        if (isImageFile(file)) {
-          setIsPreparingPhoto(false);
-        }
-        window.clearTimeout(timeoutId);
         event.target.value = "";
       }
     });
   }
-
-  function handlePhotoSelection(event: React.ChangeEvent<HTMLInputElement>) {
-    if (event.target.files?.[0]) {
-      setIsPreparingPhoto(true);
-    }
-
-    handleUpload(event);
-  }
-
-  const actionLabel = isPreparingPhoto
-    ? dictionary.importBuilder.preparingPhoto
-    : isPending
-      ? dictionary.importBuilder.parsing
-      : null;
+  const actionLabel = isPending ? dictionary.importBuilder.parsing : null;
 
   return (
     <div className="space-y-6">
@@ -131,17 +86,6 @@ export function ImportPreviewBuilder({
               accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
               className="hidden"
               onChange={handleUpload}
-              type="file"
-            />
-          </label>
-          <label className={`${secondaryButtonClass} cursor-pointer gap-2`}>
-            <Camera className="size-4" />
-            <span>{actionLabel ?? dictionary.importBuilder.choosePhoto}</span>
-            <input
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={handlePhotoSelection}
               type="file"
             />
           </label>

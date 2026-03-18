@@ -5,9 +5,6 @@ export const allowedImportMimeTypes = [
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "text/plain",
-  "image/jpeg",
-  "image/png",
-  "image/webp",
 ] as const;
 
 export const commitImportSchema = z.object({

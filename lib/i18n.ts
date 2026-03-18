@@ -44,7 +44,7 @@ const dictionaries = {
       IMPORT: {
         label: "Import",
         summary: "Upload source files, preview parsed content, and correct the mapped recipe.",
-        description: "File upload, Unstructured parsing, preview, and recipe mapping.",
+        description: "File upload, preview, and recipe mapping.",
       },
       EXPORT: {
         label: "Export",
@@ -58,7 +58,7 @@ const dictionaries = {
       loginDescription: "Use the seeded account or create a new one to start managing recipes.",
       loginHeroTitle: "Modular recipe operations for production kitchens.",
       loginHeroDescription:
-        "Manage formulas, import files through Unstructured, and generate print-ready PDF collections from one dashboard.",
+        "Manage formulas, import files, and generate print-ready PDF collections from one dashboard.",
       loginBullets: [
         "Database-backed module flags",
         "Normalized recipe storage with scaling",
@@ -185,21 +185,19 @@ const dictionaries = {
       eyebrow: "Import",
       title: "Import recipe from file",
       description:
-        "Upload a source document or recipe photo, run text parsing or OCR, preview the mapped recipe, and correct any fields before import.",
+        "Upload a source document, preview the mapped recipe, and correct any fields before import.",
     },
     importBuilder: {
-      title: "Upload document or recipe photo",
-      description: "Documents are parsed to text and photos go through OCR before the recipe fields are mapped for review.",
+      title: "Upload source document",
+      description: "Documents are parsed to text and mapped to recipe fields for review before import.",
       parsing: "Parsing...",
-      preparingPhoto: "Preparing photo...",
       chooseDocument: "Choose document",
-      choosePhoto: "Take or choose photo",
-      supportedFormats: "Supported: PDF, DOCX, TXT, JPG, PNG, and WebP.",
+      supportedFormats: "Supported: PDF, DOCX, and TXT.",
       parseFailed: "Import parsing failed.",
-      parseTimedOut: "Photo import took too long. Try a tighter crop or a smaller image.",
+      parseTimedOut: "Import took too long. Try again with a smaller file.",
       importRecipe: "Import recipe",
-      rawPreview: "Raw preview",
-      parsedSourceText: "Parsed source text",
+      rawPreview: "Source file",
+      parsedSourceText: "Original source text",
     },
     exportPage: {
       eyebrow: "Export",
@@ -307,7 +305,7 @@ const dictionaries = {
       IMPORT: {
         label: "Import",
         summary: "Ladda upp filer, granska tolkad text och justera receptet innan sparning.",
-        description: "Filuppladdning, Unstructured-tolkning, förhandsvisning och receptmappning.",
+        description: "Filuppladdning, förhandsvisning och receptmappning.",
       },
       EXPORT: {
         label: "Export",
@@ -321,7 +319,7 @@ const dictionaries = {
       loginDescription: "Använd seedat konto eller skapa ett nytt för att hantera recept.",
       loginHeroTitle: "Modulära receptflöden för produktionskök.",
       loginHeroDescription:
-        "Hantera recept, importera filer via Unstructured och skapa PDF-häften från en och samma vy.",
+        "Hantera recept, importera filer och skapa PDF-häften från en och samma vy.",
       loginBullets: [
         "Databaslagrade modulflaggor",
         "Normaliserad receptlagring med skalning",
@@ -448,21 +446,19 @@ const dictionaries = {
       eyebrow: "Import",
       title: "Importera recept från fil",
       description:
-        "Ladda upp ett dokument eller ett foto av ett recept, kör OCR eller texttolkning, granska resultatet och korrigera innan import.",
+        "Ladda upp ett dokument, granska det tolkade receptet och korrigera vid behov innan import.",
     },
     importBuilder: {
-      title: "Ladda upp dokument eller receptfoto",
-      description: "Dokument tolkas till text och foton kör OCR innan receptfälten mappas för manuell kontroll.",
+      title: "Ladda upp källdokument",
+      description: "Dokument tolkas till text och mappas till receptfält för manuell kontroll före import.",
       parsing: "Tolkar...",
-      preparingPhoto: "Förbereder foto...",
       chooseDocument: "Välj dokument",
-      choosePhoto: "Ta eller välj foto",
-      supportedFormats: "Stöd: PDF, DOCX, TXT, JPG, PNG och WebP.",
+      supportedFormats: "Stöd: PDF, DOCX och TXT.",
       parseFailed: "Importtolkningen misslyckades.",
-      parseTimedOut: "Fotoimporten tog för lång tid. Prova att beskära bilden tajtare eller ta en mindre bild.",
+      parseTimedOut: "Importen tog för lång tid. Försök igen med en mindre fil.",
       importRecipe: "Importera recept",
       rawPreview: "Rådata",
-      parsedSourceText: "Tolkad källtext",
+      parsedSourceText: "Originaltext från fil",
     },
     exportPage: {
       eyebrow: "Export",
