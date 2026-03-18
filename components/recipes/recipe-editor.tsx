@@ -298,7 +298,7 @@ export function RecipeEditor({
               <input className={inputClass} placeholder={dictionary.recipeEditor.ingredientName} {...form.register(`ingredients.${index}.name`)} />
               <input
                 className={inputClass}
-                min={1}
+                min={0.01}
                 placeholder={dictionary.recipeEditor.quantity}
                 step="0.01"
                 type="number"
