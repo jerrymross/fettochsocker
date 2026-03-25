@@ -5,6 +5,48 @@ import { defaultRecipeCategoryNames } from "@/lib/recipe-categories";
 
 const prisma = new PrismaClient();
 
+function readEnv(key: string) {
+  const value = process.env[key]?.trim();
+  return value ? value : undefined;
+}
+
+async function createUserIfMissing({
+  email,
+  name,
+  password,
+  role,
+}: {
+  email: string;
+  name: string;
+  password: string;
+  role: UserRole;
+}) {
+  const existingUser = await prisma.user.findUnique({
+    where: { email },
+    select: {
+      id: true,
+    },
+  });
+
+  if (existingUser) {
+    return existingUser;
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+
+  return prisma.user.create({
+    data: {
+      email,
+      name,
+      passwordHash,
+      role,
+    },
+    select: {
+      id: true,
+    },
+  });
+}
+
 async function upsertIngredient(name: string) {
   return prisma.ingredient.upsert({
     where: { name },
@@ -27,40 +69,7 @@ async function seedRecipeCategories() {
   });
 }
 
-async function main() {
-  const passwordHash = await bcrypt.hash("admin1234", 12);
-  const userPasswordHash = await bcrypt.hash("demo1234", 12);
-
-  const admin = await prisma.user.upsert({
-    where: { email: "admin@admin.se" },
-    update: {
-      name: "Admin User",
-      passwordHash,
-      role: UserRole.ADMIN,
-    },
-    create: {
-      email: "admin@admin.se",
-      name: "Admin User",
-      passwordHash,
-      role: UserRole.ADMIN,
-    },
-  });
-
-  const user = await prisma.user.upsert({
-    where: { email: "chef@receptlight.local" },
-    update: {
-      name: "Chef Demo",
-      passwordHash: userPasswordHash,
-      role: UserRole.USER,
-    },
-    create: {
-      email: "chef@receptlight.local",
-      name: "Chef Demo",
-      passwordHash: userPasswordHash,
-      role: UserRole.USER,
-    },
-  });
-
+async function seedModules() {
   await prisma.module.createMany({
     data: [
       {
@@ -87,9 +96,62 @@ async function main() {
     ],
     skipDuplicates: true,
   });
+}
+
+function shouldSeedDemoData() {
+  return process.env.NODE_ENV !== "production" || process.env.SEED_DEMO_DATA === "true";
+}
+
+async function main() {
+  const seedAdminEmail = readEnv("SEED_ADMIN_EMAIL");
+  const seedAdminPassword = readEnv("SEED_ADMIN_PASSWORD");
+  const seedAdminName = readEnv("SEED_ADMIN_NAME") ?? "Admin User";
+  const demoDataEnabled = shouldSeedDemoData();
+
+  await seedModules();
 
   const categories = await seedRecipeCategories();
   const categoryByName = Object.fromEntries(categories.map((category) => [category.name, category]));
+
+  let adminUser:
+    | {
+        id: string;
+      }
+    | null = null;
+  let demoUser:
+    | {
+        id: string;
+      }
+    | null = null;
+
+  if (seedAdminEmail && seedAdminPassword) {
+    adminUser = await createUserIfMissing({
+      email: seedAdminEmail,
+      name: seedAdminName,
+      password: seedAdminPassword,
+      role: UserRole.ADMIN,
+    });
+  } else if (demoDataEnabled) {
+    adminUser = await createUserIfMissing({
+      email: "admin@admin.se",
+      name: "Admin User",
+      password: "admin1234",
+      role: UserRole.ADMIN,
+    });
+  }
+
+  if (demoDataEnabled) {
+    demoUser = await createUserIfMissing({
+      email: "chef@receptlight.local",
+      name: "Chef Demo",
+      password: "demo1234",
+      role: UserRole.USER,
+    });
+  }
+
+  if (!demoDataEnabled || !adminUser || !demoUser) {
+    return;
+  }
 
   const flour = await upsertIngredient("Bread flour");
   const water = await upsertIngredient("Water");
@@ -113,7 +175,7 @@ async function main() {
       slug: "rustic-country-loaf",
       title: "Rustic Country Loaf",
       description: "A flexible lean dough with enough structure for scaling and portioning tests.",
-      authorId: admin.id,
+      authorId: adminUser.id,
       totalWeightGrams: 1760,
       categories: {
         create: [
@@ -153,7 +215,7 @@ async function main() {
       slug: "tomato-basil-sauce",
       title: "Tomato Basil Sauce",
       description: "A fast service sauce seeded as a second exportable recipe.",
-      authorId: user.id,
+      authorId: demoUser.id,
       totalWeightGrams: 1280,
       categories: {
         create: [
